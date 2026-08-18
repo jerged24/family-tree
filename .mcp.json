@@ -1,0 +1,21 @@
+{
+  "$comment": "Recommended local MCP servers for developing this project. Enable from an interactive `claude` session (they need stdio/OAuth launches this environment can't perform). Swap package names/paths for your preferred implementations.",
+  "mcpServers": {
+    "sqlite": {
+      "$comment": "Inline schema inspection & ad-hoc SQL against the app's SQLite database.",
+      "command": "uvx",
+      "args": ["mcp-server-sqlite", "--db-path", "./familytree.db"]
+    },
+    "context7": {
+      "$comment": "Up-to-date docs for D3.js, d3-dag, NetworkX, FastAPI, SQLAlchemy. Get a free key at context7.com and set CONTEXT7_API_KEY.",
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp"],
+      "env": { "CONTEXT7_API_KEY": "${CONTEXT7_API_KEY}" }
+    },
+    "playwright": {
+      "$comment": "Automated UI + graph visual testing of the D3 frontend.",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    }
+  }
+}

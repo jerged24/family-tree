@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Family Tree</title>
+  <link rel="stylesheet" href="src/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <h1>🌳 Family Tree</h1>
+    <div class="toolbar">
+      <label class="btn file-btn">
+        Import GEDCOM
+        <input type="file" id="import-input" accept=".ged" hidden />
+      </label>
+      <a class="btn" id="export-btn" href="#">Export GEDCOM</a>
+      <span class="sep"></span>
+      <label class="mode-picker">
+        View
+        <select id="view-mode">
+          <option value="full">Whole tree</option>
+          <option value="ancestors">Selected · ancestors</option>
+          <option value="descendants">Selected · descendants</option>
+          <option value="both">Selected · both</option>
+        </select>
+      </label>
+      <button class="btn" id="reload-btn">Reload</button>
+      <span class="status" id="status"></span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="canvas-wrap">
+      <svg id="tree-svg"></svg>
+      <div class="hint">Scroll to zoom · drag to pan · click a node to select · double-click to collapse</div>
+      <div class="empty-state" id="empty-state" hidden>
+        <p>No people yet.</p>
+        <p>Import a <code>.ged</code> file to get started.</p>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Details</h2>
+        <div id="detail" class="detail muted">Select a person on the tree.</div>
+      </div>
+
+      <div class="panel">
+        <h2>Relationship</h2>
+        <div class="compare-slots">
+          <div class="slot" id="slot-a"><span class="slot-label">Person A</span><span class="slot-name">—</span></div>
+          <div class="slot" id="slot-b"><span class="slot-label">Person B</span><span class="slot-name">—</span></div>
+        </div>
+        <div id="analysis" class="analysis muted">Set two people to analyse how they're related.</div>
+        <button class="btn subtle" id="clear-compare">Clear</button>
+      </div>
+
+      <div class="panel legend">
+        <h2>Legend</h2>
+        <ul>
+          <li><span class="swatch male"></span> Male</li>
+          <li><span class="swatch female"></span> Female</li>
+          <li><span class="swatch other"></span> Other / unknown</li>
+          <li><span class="line-solid"></span> Birth</li>
+          <li><span class="line-dashed"></span> Adopted / non-birth</li>
+        </ul>
+      </div>
+    </aside>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+[project]
+name = "family-tree"
+version = "0.1.0"
+description = "Interactive GEDCOM-backed family tree app: FastAPI + SQLAlchemy + NetworkX + D3/d3-dag"
+requires-python = ">=3.11"
+readme = "README.md"
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["B008"]   # FastAPI Depends() in defaults is idiomatic
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+# e2e (Playwright) tests are opt-in: they need browsers + live servers.
+# Default run excludes them; run them with:  pytest -m e2e
+addopts = "-ra -m 'not e2e'"
+markers = [
+    "e2e: browser UI tests requiring Playwright chromium and live servers",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]

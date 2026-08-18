@@ -1,0 +1,8 @@
+# Normalize line endings: store everything as LF in the repo.
+* text=auto eol=lf
+
+# Binary-ish files that must never be line-ending converted.
+*.ged text eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

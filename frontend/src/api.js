@@ -1,0 +1,41 @@
+// Thin client for the Family Tree API.
+// Override at runtime with ?api=http://host:port  (handy when ports differ).
+
+const params = new URLSearchParams(location.search);
+export const API_BASE = params.get("api") || "http://127.0.0.1:8000";
+
+async function request(path, options = {}) {
+  const res = await fetch(API_BASE + path, options);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      detail = (await res.json()).detail || detail;
+    } catch { /* non-JSON body */ }
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+export const api = {
+  tree(rootId = null, mode = "full") {
+    if (rootId == null) return request("/tree");
+    return request(`/tree/person/${rootId}?mode=${mode}`);
+  },
+  persons() {
+    return request("/persons?limit=1000");
+  },
+  personEvents(id) {
+    return request(`/persons/${id}/events`);
+  },
+  relationship(a, b) {
+    return request(`/tree/relationship/${a}/${b}`);
+  },
+  importGedcom(file) {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/gedcom/import", { method: "POST", body });
+  },
+  exportUrl(version = "5.5.1") {
+    return `${API_BASE}/gedcom/export?version=${version}`;
+  },
+};

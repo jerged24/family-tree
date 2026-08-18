@@ -1,0 +1,77 @@
+"""Assemble D3/d3-dag-ready JSON from the family graph plus display data."""
+
+from __future__ import annotations
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from backend.app.models import Event, EventType
+from backend.app.models.base import Pedigree, Sex
+from backend.app.schemas.tree import DagEdge, DagNode, TreeGraph
+from backend.app.services.graph_service import GraphService
+
+
+def _display_dates(db: Session, person_ids: set[int]) -> dict[int, tuple[str | None, str | None]]:
+    """Map person id → (birth date string, death date string) for labelling nodes."""
+    out: dict[int, tuple[str | None, str | None]] = {}
+    if not person_ids:
+        return out
+    rows = db.scalars(
+        select(Event).where(
+            Event.person_id.in_(person_ids),
+            Event.type.in_([EventType.BIRTH, EventType.DEATH]),
+        )
+    ).all()
+    for ev in rows:
+        birth, death = out.get(ev.person_id, (None, None))
+        if ev.type == EventType.BIRTH:
+            birth = ev.date_value
+        else:
+            death = ev.date_value
+        out[ev.person_id] = (birth, death)
+    return out
+
+
+def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full") -> TreeGraph:
+    """Build the DAG JSON.
+
+    ``mode`` (only when ``root_id`` is given): ``ancestors`` / ``descendants`` /
+    ``full`` (both directions around the root).
+    """
+    gs = GraphService(db)
+    graph = gs.graph
+
+    if root_id is not None:
+        gs._require(root_id)
+        if mode == "ancestors":
+            keep = gs.ancestors(root_id) | {root_id}
+        elif mode == "descendants":
+            keep = gs.descendants(root_id) | {root_id}
+        else:
+            keep = gs.ancestors(root_id) | gs.descendants(root_id) | {root_id}
+        view = graph.subgraph(keep)
+    else:
+        view = graph
+
+    dates = _display_dates(db, set(view.nodes))
+
+    nodes: list[DagNode] = []
+    for nid, attrs in view.nodes(data=True):
+        birth, death = dates.get(nid, (None, None))
+        nodes.append(
+            DagNode(
+                id=str(nid),
+                name=attrs.get("name", str(nid)),
+                sex=Sex(attrs.get("sex", Sex.UNKNOWN.value)),
+                birth=birth,
+                death=death,
+                parentIds=[str(p) for p in view.predecessors(nid)],
+            )
+        )
+
+    edges: list[DagEdge] = []
+    for u, v, data in view.edges(data=True):
+        pedigree = data.get("pedigree", Pedigree.BIRTH)
+        edges.append(DagEdge(source=str(u), target=str(v), pedigree=pedigree.value))
+
+    return TreeGraph(nodes=nodes, edges=edges)

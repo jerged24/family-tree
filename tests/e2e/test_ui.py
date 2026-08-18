@@ -1,0 +1,113 @@
+"""Browser UI tests for the D3 / d3-dag frontend (run with ``pytest -m e2e``)."""
+
+from __future__ import annotations
+
+import pytest
+from playwright.sync_api import Page, expect
+
+from tests.e2e.conftest import FIXTURE
+
+pytestmark = pytest.mark.e2e
+
+
+def _node(page: Page, name: str):
+    """Locator for the tree node whose card shows ``name``."""
+    return page.locator("#tree-svg g.node", has_text=name).first
+
+
+# SVG nodes drift during the initial fit-to-view zoom transition, so we dispatch
+# DOM click events (which the app's handlers process identically) rather than
+# relying on physical-click actionability against a moving target.
+def _select(page: Page, name: str) -> None:
+    _node(page, name).locator("rect.card").dispatch_event("click")
+
+
+def _toggle(page: Page, name: str) -> None:
+    _node(page, name).locator("circle.toggle").dispatch_event("click")
+
+
+# --------------------------------------------------------------------------- #
+def test_tree_renders_all_people(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+
+    names = page.eval_on_selector_all(
+        "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
+    )
+    assert set(names) == {"John Smith", "Mary Jones", "Carol Smith", "David Smith Jr"}
+    assert page.locator("#tree-svg path.link").count() == 4
+    # David is adopted → both parent edges are dashed.
+    assert page.locator("#tree-svg path.link.adopted").count() == 2
+    expect(page.locator("#empty-state")).to_be_hidden()
+
+
+def test_status_reports_counts(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+    expect(page.locator("#status")).to_contain_text("4 people")
+
+
+def test_relationship_analysis(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+
+    _select(page, "John Smith")
+    page.locator('#detail button[data-slot="0"]').click()
+    _select(page, "Carol Smith")
+    page.locator('#detail button[data-slot="1"]').click()
+
+    verdict = page.locator("#analysis .verdict")
+    expect(verdict).to_contain_text("John Smith's child")
+    expect(page.locator("#analysis")).to_contain_text("0.2500")  # kinship φ
+    expect(page.locator("#analysis")).to_contain_text("50.00%")  # coefficient r
+    # John → Carol path highlights both nodes and the connecting link.
+    expect(page.locator("#tree-svg g.node.on-path")).to_have_count(2)
+    expect(page.locator("#tree-svg path.link.on-path")).to_have_count(1)
+
+
+def test_adopted_child_zero_kinship(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+
+    _select(page, "John Smith")
+    page.locator('#detail button[data-slot="0"]').click()
+    _select(page, "David Smith Jr")
+    page.locator('#detail button[data-slot="1"]').click()
+
+    expect(page.locator("#analysis")).to_contain_text("0.0000")  # no genetic kinship
+    expect(page.locator("#tree-svg g.node.on-path")).to_have_count(2)  # social path still exists
+
+
+def test_collapse_hides_children_when_both_parents_collapsed(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+    assert page.locator("#tree-svg g.node").count() == 4
+
+    for name in ("John Smith", "Mary Jones"):
+        _toggle(page, name)
+
+    # Carol & David descend only from these two → now hidden.
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 2")
+    names = page.eval_on_selector_all(
+        "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
+    )
+    assert set(names) == {"John Smith", "Mary Jones"}
+
+
+def test_import_via_file_input(page: Page, live):
+    # No seeding — start from an empty database.
+    page.goto(live.url())
+    expect(page.locator("#empty-state")).to_be_visible()
+
+    page.set_input_files("#import-input", str(FIXTURE))
+
+    # Importing renders the tree and clears the empty-state overlay.
+    page.wait_for_selector("#tree-svg g.node")
+    assert page.locator("#tree-svg g.node").count() == 4
+    expect(page.locator("#empty-state")).to_be_hidden()
+    expect(page.locator("#status")).to_contain_text("4 people")
