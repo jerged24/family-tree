@@ -4,9 +4,15 @@ Two passes:
 
 1. Create every ``Person`` (INDI), ``Family`` (FAM) and ``Source`` (SOUR) record so
    their primary keys exist and xrefs resolve.
-2. Populate names/sex/events on people, HUSB/WIFE/CHIL membership on families
+2. Populate names/sex/events/media on people, HUSB/WIFE/CHIL membership on families
    (as ``Relationship`` rows), pedigree from each INDI's ``FAMC``/``PEDI``, and
    source citations on events.
+
+**Merge mode** (``merge=True``): records are matched to existing rows by ``xref_id``
+and updated in place instead of inserted, and relationships / events / media are
+de-duplicated. This makes re-importing the same document idempotent rather than
+failing on the unique ``xref_id`` constraint. ``ImportResult`` counts reflect rows
+*newly created* (so a second identical import reports zeros).
 """
 
 from __future__ import annotations
@@ -14,6 +20,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.models import (
@@ -21,6 +28,7 @@ from backend.app.models import (
     Event,
     EventType,
     Family,
+    Media,
     PartnerType,
     Pedigree,
     Person,
@@ -75,14 +83,16 @@ class ImportResult:
     relationships: int = 0
     events: int = 0
     sources: int = 0
+    media: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
 class GedcomReader:
     """Imports one GEDCOM document into a SQLAlchemy session."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, *, merge: bool = False) -> None:
         self.db = db
+        self.merge = merge
         self._person: dict[str, Person] = {}
         self._family: dict[str, Family] = {}
         self._source: dict[str, Source] = {}
@@ -116,32 +126,41 @@ class GedcomReader:
             return self.read_text(fh.read())
 
     # -- pass 1: bare records ----------------------------------------------
+    def _existing(self, model, xref: str | None):
+        if not (self.merge and xref):
+            return None
+        return self.db.scalar(select(model).where(model.xref_id == xref))
+
     def _create_person(self, rec: GedNode) -> None:
-        person = Person(xref_id=rec.xref)
-        self.db.add(person)
+        person = self._existing(Person, rec.xref)
+        if person is None:
+            person = Person(xref_id=rec.xref)
+            self.db.add(person)
+            self.result.persons += 1
         if rec.xref:
             self._person[rec.xref] = person
-        self.result.persons += 1
 
     def _create_family(self, rec: GedNode) -> None:
-        family = Family(xref_id=rec.xref)
-        self.db.add(family)
+        family = self._existing(Family, rec.xref)
+        if family is None:
+            family = Family(xref_id=rec.xref)
+            self.db.add(family)
+            self.result.families += 1
         if rec.xref:
             self._family[rec.xref] = family
-        self.result.families += 1
 
     def _create_source(self, rec: GedNode) -> None:
-        source = Source(
-            xref_id=rec.xref,
-            title=rec.value_of("TITL"),
-            author=rec.value_of("AUTH"),
-            publication=rec.value_of("PUBL"),
-            repository=rec.value_of("REPO"),
-            text=rec.value_of("TEXT"),
-        )
-        self.db.add(source)
+        source = self._existing(Source, rec.xref)
+        if source is None:
+            source = Source(xref_id=rec.xref)
+            self.db.add(source)
+            self.result.sources += 1
+        source.title = rec.value_of("TITL")
+        source.author = rec.value_of("AUTH")
+        source.publication = rec.value_of("PUBL")
+        source.repository = rec.value_of("REPO")
+        source.text = rec.value_of("TEXT")
         self._source[rec.xref] = source
-        self.result.sources += 1
 
     # -- pass 2: contents ---------------------------------------------------
     def _populate_person(self, rec: GedNode) -> None:
@@ -163,6 +182,8 @@ class GedcomReader:
         for child in rec.children:
             if child.tag in _INDIVIDUAL_EVENT_STR:
                 self._add_event(child, person=person)
+            elif child.tag == "OBJE":
+                self._add_media(child, person)
 
     def _populate_family(self, rec: GedNode) -> None:
         family = self._family.get(rec.xref)
@@ -223,6 +244,19 @@ class GedcomReader:
         partner_type: PartnerType | None = None,
         pedigree: Pedigree | None = None,
     ) -> None:
+        if self.merge:
+            existing = self.db.scalar(
+                select(Relationship).where(
+                    Relationship.person_id == person.id,
+                    Relationship.family_id == family.id,
+                    Relationship.role == role,
+                )
+            )
+            if existing is not None:
+                existing.partner_type = partner_type
+                existing.pedigree = pedigree
+                return
+
         rel = Relationship(
             person_id=person.id,
             family_id=family.id,
@@ -240,13 +274,28 @@ class GedcomReader:
         date_value = node.value_of("DATE")
         # Value-bearing events (OCCU "Farmer") and EVEN carry their value/TYPE as description.
         description = node.value_of("TYPE") or (node.value or None)
+        place = node.value_of("PLAC")
+
+        if self.merge:
+            stmt = select(Event).where(
+                Event.type == etype,
+                Event.date_value == date_value,
+                Event.place == place,
+            )
+            stmt = stmt.where(
+                Event.person_id == (person.id if person else None),
+                Event.family_id == (family.id if family else None),
+            )
+            if self.db.scalar(stmt) is not None:
+                return  # identical event already recorded
+
         event = Event(
             type=etype,
             person_id=person.id if person else None,
             family_id=family.id if family else None,
             date_value=date_value,
             date_sort=parse_gedcom_date(date_value),
-            place=node.value_of("PLAC"),
+            place=place,
             description=description,
         )
         self.db.add(event)
@@ -266,8 +315,31 @@ class GedcomReader:
                 )
             )
 
+    def _add_media(self, node: GedNode, person: Person) -> None:
+        url = node.value_of("FILE") or (node.value or None)
+        if not url:
+            return
+        if self.merge:
+            existing = self.db.scalar(
+                select(Media).where(Media.person_id == person.id, Media.url == url)
+            )
+            if existing is not None:
+                return
+        self.db.add(
+            Media(
+                person_id=person.id,
+                url=url,
+                caption=node.value_of("TITL"),
+                mime_type=node.value_of("FORM"),
+                is_primary=(node.value_of("_PRIM") or "").upper() == "Y",
+            )
+        )
+        self.result.media += 1
 
-def _collect_famc_pedigree(records: list[GedNode]) -> dict[tuple[str | None, str | None], Pedigree]:
+
+def _collect_famc_pedigree(
+    records: list[GedNode],
+) -> dict[tuple[str | None, str | None], Pedigree]:
     """Map (person_xref, family_xref) → Pedigree from each INDI's FAMC/PEDI sub-tag."""
     out: dict[tuple[str | None, str | None], Pedigree] = {}
     for rec in records:
@@ -280,6 +352,6 @@ def _collect_famc_pedigree(records: list[GedNode]) -> dict[tuple[str | None, str
     return out
 
 
-def import_gedcom(db: Session, text: str) -> ImportResult:
+def import_gedcom(db: Session, text: str, *, merge: bool = False) -> ImportResult:
     """Import GEDCOM ``text`` into ``db`` and return counts. Caller commits."""
-    return GedcomReader(db).read_text(text)
+    return GedcomReader(db, merge=merge).read_text(text)

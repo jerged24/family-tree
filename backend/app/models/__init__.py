@@ -10,6 +10,7 @@ from backend.app.models.base import (
 )
 from backend.app.models.event import Event
 from backend.app.models.family import Family
+from backend.app.models.media import Media
 from backend.app.models.person import Person
 from backend.app.models.relationship import Relationship
 from backend.app.models.source import Citation, Source
@@ -27,4 +28,5 @@ __all__ = [
     "Event",
     "Source",
     "Citation",
+    "Media",
 ]

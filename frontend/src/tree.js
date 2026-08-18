@@ -13,6 +13,11 @@ export class TreeView {
     this.onSelect = onSelect || (() => {});
     this.onToggle = onToggle || (() => {});
 
+    // Circular clip for node avatars.
+    this.svg
+      .append("defs")
+      .html('<clipPath id="ft-avatar-clip"><circle cx="22" cy="26" r="15"/></clipPath>');
+
     this.viewport = this.svg.append("g").attr("class", "viewport");
     this.linkLayer = this.viewport.append("g").attr("class", "links");
     this.nodeLayer = this.viewport.append("g").attr("class", "nodes");
@@ -125,6 +130,16 @@ export class TreeView {
       const sexClass = info.sex === "M" ? "male" : info.sex === "F" ? "female" : "other";
       return `node ${sexClass}`;
     });
+    // update avatar photo / initial (handles nodes gaining a photo after a reload)
+    nodeSel
+      .select("image.avatar-img")
+      .attr("href", (n) => this._info(n).photo_url || null)
+      .style("display", (n) => (this._info(n).photo_url ? null : "none"));
+    nodeSel
+      .select("text.avatar-initial")
+      .text((n) => (this._info(n).name || "?").trim().charAt(0).toUpperCase())
+      .style("display", (n) => (this._info(n).photo_url ? "none" : null));
+
     nodeSel.select(".toggle-sign").text((n) => (this.collapsed.has(n.data.id) ? "+" : "–"));
     nodeSel
       .select(".toggle")
@@ -156,15 +171,27 @@ export class TreeView {
       .attr("height", NODE_H)
       .attr("rx", 3);
 
+    // Avatar: colored circle with the person's initial, overlaid by a photo if present.
+    g.append("circle").attr("class", "avatar-bg").attr("cx", 22).attr("cy", 26).attr("r", 15);
+    g.append("text").attr("class", "avatar-initial").attr("x", 22).attr("y", 27);
+    g.append("image")
+      .attr("class", "avatar-img")
+      .attr("x", 7)
+      .attr("y", 11)
+      .attr("width", 30)
+      .attr("height", 30)
+      .attr("clip-path", "url(#ft-avatar-clip)")
+      .attr("preserveAspectRatio", "xMidYMid slice");
+
     g.append("text")
       .attr("class", "name")
-      .attr("x", 16)
+      .attr("x", 44)
       .attr("y", 21)
       .text((n) => this._info(n).name || "(unknown)");
 
     g.append("text")
       .attr("class", "dates")
-      .attr("x", 16)
+      .attr("x", 44)
       .attr("y", 38)
       .text((n) => this._dateLabel(this._info(n)));
 

@@ -111,3 +111,35 @@ def test_import_via_file_input(page: Page, live):
     assert page.locator("#tree-svg g.node").count() == 4
     expect(page.locator("#empty-state")).to_be_hidden()
     expect(page.locator("#status")).to_contain_text("4 people")
+
+
+def test_load_sample_button(page: Page, live):
+    # Empty DB → click "Load sample" → the bundled 9-person family renders.
+    page.goto(live.url())
+    expect(page.locator("#empty-state")).to_be_visible()
+    page.locator("#sample-btn").click()
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 9")
+    names = page.eval_on_selector_all(
+        "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
+    )
+    assert "Robert King" in names and "Emily King" in names
+
+
+def test_add_photo_shows_avatar_on_node(page: Page, live):
+    live.seed()
+    page.goto(live.url())
+    page.wait_for_selector("#tree-svg g.node")
+
+    _select(page, "John Smith")
+    page.wait_for_selector("#photo-url")
+    tiny_gif = "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=="
+    page.fill("#photo-url", tiny_gif)
+    page.locator("#photo-add-btn").click()
+
+    # After the reload, John's node shows a photo avatar (image href set, initial hidden).
+    page.wait_for_function("""() => {
+            const g = [...document.querySelectorAll('#tree-svg g.node')]
+              .find(n => n.querySelector('text.name')?.textContent === 'John Smith');
+            const img = g && g.querySelector('image.avatar-img');
+            return img && img.getAttribute('href') && img.style.display !== 'none';
+        }""")

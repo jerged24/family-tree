@@ -11,6 +11,7 @@ from backend.app.models.base import Base, Sex, TimestampMixin, str_enum
 
 if TYPE_CHECKING:
     from backend.app.models.event import Event
+    from backend.app.models.media import Media
     from backend.app.models.relationship import Relationship
 
 
@@ -41,12 +42,24 @@ class Person(Base, TimestampMixin):
         cascade="all, delete-orphan",
         primaryjoin="Person.id == Event.person_id",
     )
+    media: Mapped[list[Media]] = relationship(
+        back_populates="person",
+        cascade="all, delete-orphan",
+        order_by="Media.id",
+    )
 
     @property
     def display_name(self) -> str:
         """Human-friendly full name; GEDCOM stores surname in /slashes/."""
         parts = [self.name_prefix, self.given_name, self.surname, self.name_suffix]
         return " ".join(p for p in parts if p) or "(unknown)"
+
+    @property
+    def photo_url(self) -> str | None:
+        """URL of the primary photo (or the first attached media), if any."""
+        primary = [m for m in self.media if m.is_primary]
+        pool = primary or self.media
+        return pool[0].url if pool else None
 
     def __repr__(self) -> str:  # pragma: no cover
         return f"<Person id={self.id} {self.display_name!r}>"

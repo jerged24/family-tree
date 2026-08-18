@@ -18,6 +18,7 @@ class DagNode(BaseModel):
     sex: Sex
     birth: str | None = None  # display date string, if known
     death: str | None = None
+    photo_url: str | None = None  # primary photo, if any
     parentIds: list[str] = []  # ids of parent nodes (the DAG links)
 
 
@@ -54,4 +55,5 @@ class ImportSummary(BaseModel):
     relationships: int
     events: int
     sources: int
+    media: int = 0
     warnings: list[str] = []

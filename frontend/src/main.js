@@ -10,6 +10,7 @@ const els = {
   slotA: document.getElementById("slot-a"),
   slotB: document.getElementById("slot-b"),
   importInput: document.getElementById("import-input"),
+  sampleBtn: document.getElementById("sample-btn"),
   exportBtn: document.getElementById("export-btn"),
   reloadBtn: document.getElementById("reload-btn"),
   clearCompare: document.getElementById("clear-compare"),
@@ -82,9 +83,18 @@ async function renderDetail(id) {
   }
   els.detail.classList.remove("muted");
   els.detail.innerHTML = `
-    <div class="name">${displayName(p)}</div>
-    <div class="meta">${sexLabel(p.sex)}${p.xref_id ? " · " + p.xref_id : ""}</div>
+    <div class="person-head">
+      <div class="avatar" id="detail-avatar"></div>
+      <div>
+        <div class="name">${displayName(p)}</div>
+        <div class="meta">${sexLabel(p.sex)}${p.xref_id ? " · " + p.xref_id : ""}</div>
+      </div>
+    </div>
     <ul class="events"><li class="muted">Loading events…</li></ul>
+    <div class="photo-add">
+      <input type="url" id="photo-url" placeholder="Photo URL…" />
+      <button class="btn subtle" id="photo-add-btn">Add photo</button>
+    </div>
     <div class="detail-actions">
       <button class="btn subtle" data-slot="0">Set as A</button>
       <button class="btn subtle" data-slot="1">Set as B</button>
@@ -92,8 +102,29 @@ async function renderDetail(id) {
   els.detail.querySelectorAll("button[data-slot]").forEach((b) =>
     b.addEventListener("click", () => setCompareSlot(Number(b.dataset.slot), id))
   );
+
+  // Add-photo handler.
+  const urlInput = els.detail.querySelector("#photo-url");
+  const addPhoto = async () => {
+    const url = urlInput.value.trim();
+    if (!url) return;
+    try {
+      await api.addMedia(id, { url, is_primary: true });
+      urlInput.value = "";
+      await loadTree(); // refresh node avatars
+      renderDetail(id); // refresh thumbnail
+    } catch (err) {
+      setStatus(err.message, true);
+    }
+  };
+  els.detail.querySelector("#photo-add-btn").addEventListener("click", addPhoto);
+  urlInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") addPhoto();
+  });
+
+  // Load events + media in parallel.
   try {
-    const events = await api.personEvents(id);
+    const [events, media] = await Promise.all([api.personEvents(id), api.personMedia(id)]);
     const ul = els.detail.querySelector(".events");
     ul.innerHTML = events.length
       ? events
@@ -105,6 +136,16 @@ async function renderDetail(id) {
           )
           .join("")
       : `<li class="muted">No events recorded.</li>`;
+
+    const primary = media.find((m) => m.is_primary) || media[0];
+    const avatar = els.detail.querySelector("#detail-avatar");
+    if (primary) {
+      avatar.style.backgroundImage = `url("${primary.url}")`;
+      avatar.classList.add("has-photo");
+      avatar.textContent = "";
+    } else {
+      avatar.textContent = (displayName(p)[0] || "?").toUpperCase();
+    }
   } catch {
     /* leave the loading text */
   }
@@ -177,6 +218,17 @@ els.importInput.addEventListener("change", async (e) => {
     setStatus(err.message, true);
   } finally {
     e.target.value = "";
+  }
+});
+
+els.sampleBtn.addEventListener("click", async () => {
+  setStatus("Loading sample…");
+  try {
+    await api.loadSample();
+    state.selectedId = null;
+    await loadTree();
+  } catch (err) {
+    setStatus(err.message, true);
   }
 });
 

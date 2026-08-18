@@ -116,6 +116,9 @@ class GedcomWriter:
         for event in person.events:
             self._write_event(event)
 
+        for item in person.media:
+            self._write_media(item)
+
         for rel in person.memberships:
             if rel.role == RelationshipRole.PARTNER:
                 self._line(1, "FAMS", self._family_xref(rel.family))
@@ -173,6 +176,16 @@ class GedcomWriter:
             self._line(2, "SOUR", self._source_xref(cit.source))
             if cit.page:
                 self._line(3, "PAGE", cit.page)
+
+    def _write_media(self, item) -> None:  # noqa: ANN001 - Media (avoid import cycle noise)
+        self._line(1, "OBJE")
+        self._line(2, "FILE", item.url)
+        if item.mime_type:
+            self._line(3, "FORM", item.mime_type)
+        if item.caption:
+            self._line(2, "TITL", item.caption)
+        if item.is_primary:
+            self._line(2, "_PRIM", "Y")
 
     # -- helpers ------------------------------------------------------------
     @staticmethod

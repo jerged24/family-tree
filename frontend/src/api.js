@@ -35,6 +35,19 @@ export const api = {
     body.append("file", file);
     return request("/gedcom/import", { method: "POST", body });
   },
+  loadSample() {
+    return request("/gedcom/sample", { method: "POST" });
+  },
+  personMedia(id) {
+    return request(`/persons/${id}/media`);
+  },
+  addMedia(id, payload) {
+    return request(`/persons/${id}/media`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  },
   exportUrl(version = "5.5.1") {
     return `${API_BASE}/gedcom/export?version=${version}`;
   },
