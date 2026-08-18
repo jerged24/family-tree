@@ -55,7 +55,7 @@ jobs:
       - name: Install Playwright Chromium (+ OS deps)
         run: python -m playwright install --with-deps chromium
 
-      # The frontend loads d3 / d3-dag from a public CDN at runtime, so these
-      # tests require network access on the runner.
+      # d3 / d3-dag are vendored under frontend/vendor/, so the frontend needs
+      # no network at runtime.
       - name: Playwright e2e tests
         run: pytest -m e2e

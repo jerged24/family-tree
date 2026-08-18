@@ -159,8 +159,9 @@ See `.mcp.json` for the exact server entries and swap in your preferred implemen
    `hidden` attribute) — fixed with `.empty-state[hidden]{display:none}`.
 8. ✅ CI (`.github/workflows/ci.yml`): ruff + black + unit tests on Python 3.11 & 3.12,
    and a separate Playwright e2e job. The whole codebase is ruff- and black-clean;
-   domain enums use `enum.StrEnum`. Note the e2e job needs network access (the frontend
-   pulls d3 / d3-dag from a CDN at runtime) — vendoring those would remove that dependency.
+   domain enums use `enum.StrEnum`.
+9. ✅ Vendored d3 / d3-dag under `frontend/vendor/` (see its README) — the frontend has
+   **no runtime CDN dependency**; it works offline and CI needs no network for the UI.
 
 **The application is feature-complete against the original spec.** Run both servers via
 `.claude/launch.json` (`api` + `frontend`) or the commands above.

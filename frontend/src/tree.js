@@ -1,6 +1,8 @@
 // D3 + d3-dag renderer for the family DAG.
-import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
-import * as d3dag from "https://cdn.jsdelivr.net/npm/d3-dag@1.1.0/+esm";
+// Vendored locally (frontend/vendor/) so the app has no runtime CDN dependency —
+// see frontend/vendor/README.md for versions and how to refresh them.
+import * as d3 from "../vendor/d3.js";
+import * as d3dag from "../vendor/d3-dag.js";
 
 const NODE_W = 168;
 const NODE_H = 52;
