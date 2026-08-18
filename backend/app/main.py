@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from backend.app.api.routes import events, families, gedcom, persons, tree
+from backend.app.api.routes import events, families, gedcom, media, persons, tree
 from backend.app.config import settings
 from backend.app.database import init_db
 
@@ -40,7 +40,14 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    for router in (persons.router, families.router, events.router, tree.router, gedcom.router):
+    for router in (
+        persons.router,
+        families.router,
+        events.router,
+        media.router,
+        tree.router,
+        gedcom.router,
+    ):
         app.include_router(router)
 
     @app.get("/health", tags=["meta"])

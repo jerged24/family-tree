@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Event, EventType
+from backend.app.models import Event, EventType, Media
 from backend.app.models.base import Pedigree, Sex
 from backend.app.schemas.tree import DagEdge, DagNode, TreeGraph
 from backend.app.services.graph_service import GraphService
@@ -32,6 +32,19 @@ def _display_dates(db: Session, person_ids: set[int]) -> dict[int, tuple[str | N
     return out
 
 
+def _photos(db: Session, person_ids: set[int]) -> dict[int, str]:
+    """Map person id → primary photo URL (falling back to the first attached)."""
+    out: dict[int, str] = {}
+    if not person_ids:
+        return out
+    rows = db.scalars(select(Media).where(Media.person_id.in_(person_ids)).order_by(Media.id)).all()
+    for m in rows:
+        # First row for a person seeds it; a later primary overrides.
+        if m.person_id not in out or m.is_primary:
+            out[m.person_id] = m.url
+    return out
+
+
 def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full") -> TreeGraph:
     """Build the DAG JSON.
 
@@ -53,7 +66,9 @@ def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full"
     else:
         view = graph
 
-    dates = _display_dates(db, set(view.nodes))
+    node_ids = set(view.nodes)
+    dates = _display_dates(db, node_ids)
+    photos = _photos(db, node_ids)
 
     nodes: list[DagNode] = []
     for nid, attrs in view.nodes(data=True):
@@ -65,6 +80,7 @@ def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full"
                 sex=Sex(attrs.get("sex", Sex.UNKNOWN.value)),
                 birth=birth,
                 death=death,
+                photo_url=photos.get(nid),
                 parentIds=[str(p) for p in view.predecessors(nid)],
             )
         )

@@ -85,6 +85,7 @@ def test_gedcom_import_export_and_analysis(client, sample_ged):
         "relationships": 4,
         "events": 6,
         "sources": 1,
+        "media": 0,
         "warnings": [],
     }
 
@@ -129,3 +130,57 @@ def test_export_version_param(client, sample_ged):
     client.post("/gedcom/import", files={"file": ("s.ged", sample_ged, "text/plain")})
     body = client.get("/gedcom/export", params={"version": "7.0"}).text
     assert "2 VERS 7.0" in body
+
+
+# --------------------------------------------------------------- sample seed + merge
+def test_load_sample_endpoint_is_idempotent(client):
+    first = client.post("/gedcom/sample").json()
+    assert first["persons"] == 9 and first["families"] == 3
+    # Calling again adds nothing (merge by xref).
+    second = client.post("/gedcom/sample").json()
+    assert (second["persons"], second["families"], second["relationships"]) == (0, 0, 0)
+    assert len(client.get("/persons").json()) == 9
+
+
+def test_import_merge_mode_no_duplicate(client, sample_ged):
+    client.post("/gedcom/import", files={"file": ("s.ged", sample_ged, "text/plain")})
+    # Default mode is merge → second import of the same file must not error or duplicate.
+    r = client.post("/gedcom/import", files={"file": ("s.ged", sample_ged, "text/plain")})
+    assert r.status_code == 201
+    assert r.json()["persons"] == 0
+    assert len(client.get("/persons").json()) == 4
+
+
+# --------------------------------------------------------------- media
+def test_media_crud_and_tree_photo(client):
+    pid = client.post("/persons", json={"given_name": "Ivy", "sex": "F"}).json()["id"]
+
+    created = client.post(
+        f"/persons/{pid}/media",
+        json={"url": "https://img/ivy.png", "caption": "Ivy", "is_primary": True},
+    )
+    assert created.status_code == 201
+    media_id = created.json()["id"]
+
+    assert client.get(f"/persons/{pid}/media").json()[0]["url"] == "https://img/ivy.png"
+
+    # The photo surfaces in the tree DAG JSON.
+    node = next(n for n in client.get("/tree").json()["nodes"] if n["id"] == str(pid))
+    assert node["photo_url"] == "https://img/ivy.png"
+
+    assert client.delete(f"/media/{media_id}").status_code == 204
+    assert client.get(f"/persons/{pid}/media").json() == []
+
+
+def test_add_media_unknown_person_404(client):
+    resp = client.post("/persons/99999/media", json={"url": "https://x/y.png"})
+    assert resp.status_code == 404
+
+
+def test_only_one_primary_photo(client):
+    pid = client.post("/persons", json={"given_name": "Jo"}).json()["id"]
+    client.post(f"/persons/{pid}/media", json={"url": "https://x/1.png", "is_primary": True})
+    client.post(f"/persons/{pid}/media", json={"url": "https://x/2.png", "is_primary": True})
+    media = client.get(f"/persons/{pid}/media").json()
+    assert sum(1 for m in media if m["is_primary"]) == 1
+    assert next(m for m in media if m["is_primary"])["url"] == "https://x/2.png"

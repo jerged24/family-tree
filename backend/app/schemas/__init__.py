@@ -2,6 +2,7 @@
 
 from backend.app.schemas.event import EventCreate, EventRead, EventUpdate
 from backend.app.schemas.family import FamilyCreate, FamilyRead, FamilyUpdate
+from backend.app.schemas.media import MediaCreate, MediaRead
 from backend.app.schemas.person import PersonCreate, PersonRead, PersonUpdate
 from backend.app.schemas.relationship import RelationshipCreate, RelationshipRead
 from backend.app.schemas.source import CitationRead, SourceCreate, SourceRead
@@ -28,6 +29,8 @@ __all__ = [
     "SourceCreate",
     "SourceRead",
     "CitationRead",
+    "MediaCreate",
+    "MediaRead",
     "DagNode",
     "DagEdge",
     "TreeGraph",

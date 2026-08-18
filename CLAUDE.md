@@ -162,6 +162,12 @@ See `.mcp.json` for the exact server entries and swap in your preferred implemen
    domain enums use `enum.StrEnum`.
 9. ✅ Vendored d3 / d3-dag under `frontend/vendor/` (see its README) — the frontend has
    **no runtime CDN dependency**; it works offline and CI needs no network for the UI.
+10. ✅ Pilot improvements: bundled **sample dataset** (`backend/app/data/sample.ged`, served by
+    `POST /gedcom/sample` and the "Load sample" button); **merge-on-import** (`?mode=merge`,
+    default) matches records by xref and de-duplicates, making re-import idempotent instead of
+    crashing on the unique-xref constraint; **media** (`Media` model, `/persons/{id}/media`,
+    GEDCOM `OBJE` round-trip) shown as node avatars. `docs/capture_screenshot.py` regenerates
+    the README screenshot.
 
 **The application is feature-complete against the original spec.** Run both servers via
 `.claude/launch.json` (`api` + `frontend`) or the commands above.
