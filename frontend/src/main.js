@@ -1,6 +1,26 @@
 import { api } from "./api.js";
 import { TreeView } from "./tree.js";
 
+const loginOverlay = document.getElementById("login-overlay");
+const loginForm = document.getElementById("login-form");
+const loginError = document.getElementById("login-error");
+
+document.addEventListener("needs-login", () => {
+  loginOverlay.hidden = false;
+});
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  loginError.textContent = "";
+  try {
+    await api.login(document.getElementById("login-password").value);
+    loginOverlay.hidden = true;
+    loadTree();
+  } catch {
+    loginError.textContent = "Incorrect password.";
+  }
+});
+
 const els = {
   svg: document.getElementById("tree-svg"),
   status: document.getElementById("status"),

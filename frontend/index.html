@@ -7,6 +7,16 @@
   <link rel="stylesheet" href="src/styles.css" />
 </head>
 <body>
+  <div id="login-overlay" class="login-overlay" hidden>
+    <form id="login-form" class="login-card">
+      <h2>Family Tree</h2>
+      <p class="muted">Enter the owner password.</p>
+      <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" />
+      <button class="btn" type="submit">Sign in</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+
   <header class="app-header">
     <h1>🌳 Family Tree</h1>
     <div class="toolbar">

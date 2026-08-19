@@ -161,3 +161,11 @@ body { display: flex; flex-direction: column; }
 .node.on-path .card { stroke: var(--path); stroke-width: 2.4px; }
 .node .toggle { fill: var(--panel); stroke: #a9b4c0; stroke-width: 1.3px; }
 .node .toggle-sign { font-size: 12px; font-weight: 700; fill: var(--muted); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+.login-overlay { position: fixed; inset: 0; background: rgba(31,41,51,0.55);
+  display: flex; align-items: center; justify-content: center; z-index: 50; }
+.login-card { background: var(--panel); padding: 1.6rem; border-radius: 12px;
+  box-shadow: var(--shadow); width: 280px; display: flex; flex-direction: column; gap: 0.6rem; }
+.login-card h2 { margin: 0; }
+.login-card input { font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 7px; }
+.login-error { color: var(--path); font-size: 0.82rem; min-height: 1em; }
