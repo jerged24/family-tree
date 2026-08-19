@@ -23,6 +23,14 @@ async function request(path, options = {}) {
   return res.status === 204 ? null : res.json();
 }
 
+function postJSON(path, payload) {
+  return request(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export const api = {
   tree(rootId = null, mode = "full") {
     if (rootId == null) return request("/tree");
@@ -33,6 +41,21 @@ export const api = {
   },
   personEvents(id) {
     return request(`/persons/${id}/events`);
+  },
+  personMemberships(id) {
+    return request(`/persons/${id}/memberships`);
+  },
+  createPerson(payload) {
+    return postJSON("/persons", payload);
+  },
+  createEvent(payload) {
+    return postJSON("/events", payload);
+  },
+  createFamily() {
+    return postJSON("/families", {});
+  },
+  addMember(familyId, payload) {
+    return postJSON(`/families/${familyId}/members`, payload);
   },
   relationship(a, b) {
     return request(`/tree/relationship/${a}/${b}`);

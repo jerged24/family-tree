@@ -29,6 +29,24 @@ def test_person_crud_lifecycle(client):
     assert client.get(f"/persons/{pid}").status_code == 404
 
 
+def test_person_memberships(client):
+    parent = client.post("/persons", json={"given_name": "Pat"}).json()["id"]
+    child = client.post("/persons", json={"given_name": "Kim"}).json()["id"]
+    fam = client.post("/families", json={}).json()["id"]
+    client.post(
+        f"/families/{fam}/members", json={"person_id": parent, "family_id": fam, "role": "PARTNER"}
+    )
+    client.post(
+        f"/families/{fam}/members", json={"person_id": child, "family_id": fam, "role": "CHILD"}
+    )
+
+    pm = client.get(f"/persons/{parent}/memberships").json()
+    assert len(pm) == 1 and pm[0]["role"] == "PARTNER" and pm[0]["family_id"] == fam
+    cm = client.get(f"/persons/{child}/memberships").json()
+    assert cm[0]["role"] == "CHILD"
+    assert client.get("/persons/999999/memberships").status_code == 404
+
+
 def test_list_persons_filter_by_surname(client):
     client.post("/persons", json={"given_name": "A", "surname": "Ng"})
     client.post("/persons", json={"given_name": "B", "surname": "Ng"})

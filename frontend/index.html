@@ -20,6 +20,7 @@
   <header class="app-header">
     <h1>🌳 Family Tree</h1>
     <div class="toolbar">
+      <button class="btn" id="add-person-btn">+ Add person</button>
       <button class="btn" id="sample-btn">Load sample</button>
       <label class="btn file-btn">
         Import GEDCOM
@@ -79,6 +80,26 @@
       </div>
     </aside>
   </main>
+
+  <div id="person-modal" class="modal-overlay" hidden>
+    <form id="person-form" class="modal-card">
+      <h2 id="person-modal-title">Add person</h2>
+      <input id="pf-given" placeholder="First name" autocomplete="off" />
+      <input id="pf-surname" placeholder="Last name" autocomplete="off" />
+      <select id="pf-sex">
+        <option value="U">Sex — unknown</option>
+        <option value="M">Male</option>
+        <option value="F">Female</option>
+        <option value="X">Other</option>
+      </select>
+      <input id="pf-dob" placeholder="Date of birth (e.g. 12 JUN 1990)" autocomplete="off" />
+      <input id="pf-dod" placeholder="Date of death (optional)" autocomplete="off" />
+      <div class="modal-actions">
+        <button type="button" class="btn subtle" id="pf-cancel">Cancel</button>
+        <button type="submit" class="btn">Save</button>
+      </div>
+    </form>
+  </div>
 
   <script type="module" src="src/main.js"></script>
 </body>

@@ -7,8 +7,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
-from backend.app.models import Event, Person
-from backend.app.schemas import EventRead, PersonCreate, PersonRead, PersonUpdate
+from backend.app.models import Event, Person, Relationship
+from backend.app.schemas import (
+    EventRead,
+    PersonCreate,
+    PersonRead,
+    PersonUpdate,
+    RelationshipRead,
+)
 
 router = APIRouter(prefix="/persons", tags=["persons"])
 
@@ -68,3 +74,10 @@ def delete_person(person_id: int, db: Session = Depends(get_db)) -> None:
 def person_events(person_id: int, db: Session = Depends(get_db)) -> list[Event]:
     _get_or_404(db, person_id)
     return list(db.scalars(select(Event).where(Event.person_id == person_id)))
+
+
+@router.get("/{person_id}/memberships", response_model=list[RelationshipRead])
+def person_memberships(person_id: int, db: Session = Depends(get_db)) -> list[Relationship]:
+    """The person's family memberships (which families, as PARTNER or CHILD)."""
+    _get_or_404(db, person_id)
+    return list(db.scalars(select(Relationship).where(Relationship.person_id == person_id)))
