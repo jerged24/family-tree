@@ -12,6 +12,11 @@ class MediaCreate(BaseModel):
     is_primary: bool = False
 
 
+class MediaUpdate(BaseModel):
+    is_primary: bool | None = None
+    caption: str | None = Field(default=None, max_length=255)
+
+
 class MediaRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

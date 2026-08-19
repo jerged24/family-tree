@@ -204,3 +204,25 @@ body { display: flex; flex-direction: column; }
 .entity-actions { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
 .btn.danger { color: var(--path); }
 .btn.danger:hover { background: #fdecec; border-color: var(--path); }
+
+/* ---- Relationship-type selector in the person modal ---- */
+.pedigree-wrap { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.78rem; color: var(--muted); }
+.pedigree-wrap[hidden] { display: none; }
+
+/* ---- Media gallery (multiple photos per person) ---- */
+.media-gallery { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 0.7rem; }
+.media-gallery:empty { display: none; }
+.thumb {
+  position: relative; width: 48px; height: 48px; border-radius: 8px;
+  background: #e6ebf0 center / cover no-repeat; border: 1px solid var(--border);
+}
+.thumb.is-primary { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.thumb-btn {
+  position: absolute; width: 16px; height: 16px; padding: 0; line-height: 14px;
+  border: none; border-radius: 50%; cursor: pointer; font-size: 11px;
+  background: rgba(31, 41, 51, 0.75); color: #fff; opacity: 0; transition: opacity 0.12s;
+}
+.thumb:hover .thumb-btn { opacity: 1; }
+.thumb-btn.star { top: 2px; left: 2px; }
+.thumb-btn.del { top: 2px; right: 2px; }
+.thumb.is-primary .thumb-btn.star { opacity: 1; color: var(--selected); }

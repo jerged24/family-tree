@@ -62,6 +62,11 @@ function displayName(p) {
   return [p.name_prefix, p.given_name, p.surname, p.name_suffix].filter(Boolean).join(" ") || "(unknown)";
 }
 
+// Capitalize the first letter of each word, leaving the rest of each word as typed.
+function titleCase(s) {
+  return (s || "").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 // Friendly display labels for GEDCOM event tags (the tags themselves stay in the data).
 const EVENT_LABELS = {
   BIRT: "DOB", DEAT: "DOD", MARR: "Married", DIV: "Divorced", BURI: "Buried",
@@ -76,13 +81,15 @@ const personModal = document.getElementById("person-modal");
 const personForm = document.getElementById("person-form");
 let modalResolve = null;
 
-function openPersonForm(title, prefill = {}) {
+function openPersonForm(title, prefill = {}, opts = {}) {
   document.getElementById("person-modal-title").textContent = title;
   document.getElementById("pf-given").value = prefill.given || "";
   document.getElementById("pf-surname").value = prefill.surname || "";
   document.getElementById("pf-sex").value = prefill.sex || "U";
   document.getElementById("pf-dob").value = prefill.dob || "";
   document.getElementById("pf-dod").value = prefill.dod || "";
+  document.getElementById("pf-pedigree").value = "BIRTH";
+  document.getElementById("pf-pedigree-wrap").hidden = !opts.showPedigree;
   personModal.hidden = false;
   document.getElementById("pf-given").focus();
   return new Promise((resolve) => (modalResolve = resolve));
@@ -96,11 +103,19 @@ function closePersonForm(result) {
 personForm.addEventListener("submit", (e) => {
   e.preventDefault();
   closePersonForm({
-    given: document.getElementById("pf-given").value.trim(),
-    surname: document.getElementById("pf-surname").value.trim(),
+    given: titleCase(document.getElementById("pf-given").value.trim()),
+    surname: titleCase(document.getElementById("pf-surname").value.trim()),
     sex: document.getElementById("pf-sex").value,
     dob: document.getElementById("pf-dob").value.trim(),
     dod: document.getElementById("pf-dod").value.trim(),
+    pedigree: document.getElementById("pf-pedigree").value,
+  });
+});
+// Auto-capitalize names as you leave the field.
+["pf-given", "pf-surname"].forEach((id) => {
+  const el = document.getElementById(id);
+  el.addEventListener("blur", () => {
+    el.value = titleCase(el.value);
   });
 });
 document.getElementById("pf-cancel").addEventListener("click", () => closePersonForm(null));
@@ -121,26 +136,33 @@ async function createPersonFromForm(form) {
 }
 
 // Family reuse: find the person's partner (or child) family, else create one.
-async function familyOf(personId, role) {
+// When creating a CHILD membership, an optional non-birth pedigree is applied.
+async function familyOf(personId, role, pedigree) {
   const memberships = await api.personMemberships(personId);
   const existing = memberships.find((m) => m.role === role);
   if (existing) return existing.family_id;
   const fam = await api.createFamily();
-  await api.addMember(fam.id, { person_id: personId, family_id: fam.id, role });
+  const payload = { person_id: personId, family_id: fam.id, role };
+  if (role === "CHILD" && pedigree && pedigree !== "BIRTH") payload.pedigree = pedigree;
+  await api.addMember(fam.id, payload);
   return fam.id;
 }
 
 async function addRelative(kind, anchorId, form) {
+  const pedigree = form.pedigree || "BIRTH";
   if (kind === "child") {
     const famId = await familyOf(anchorId, "PARTNER");
     const childId = await createPersonFromForm(form);
-    await api.addMember(famId, { person_id: childId, family_id: famId, role: "CHILD" });
+    const payload = { person_id: childId, family_id: famId, role: "CHILD" };
+    if (pedigree !== "BIRTH") payload.pedigree = pedigree;
+    await api.addMember(famId, payload);
   } else if (kind === "spouse") {
     const famId = await familyOf(anchorId, "PARTNER");
     const spouseId = await createPersonFromForm(form);
     await api.addMember(famId, { person_id: spouseId, family_id: famId, role: "PARTNER" });
   } else if (kind === "parent") {
-    const famId = await familyOf(anchorId, "CHILD");
+    // The anchor is the CHILD in this new family; the pedigree describes that link.
+    const famId = await familyOf(anchorId, "CHILD", pedigree);
     const parentId = await createPersonFromForm(form);
     await api.addMember(famId, { person_id: parentId, family_id: famId, role: "PARTNER" });
   }
@@ -277,6 +299,7 @@ async function renderDetail(id) {
       <input type="url" id="photo-url" placeholder="or paste a URL…" />
       <button class="btn subtle" id="photo-add-btn">Add URL</button>
     </div>
+    <div class="media-gallery" id="media-gallery"></div>
     <div class="detail-actions">
       <button class="btn subtle" data-slot="0">Set as A</button>
       <button class="btn subtle" data-slot="1">Set as B</button>
@@ -289,7 +312,9 @@ async function renderDetail(id) {
   // Add-relative handlers.
   els.detail.querySelectorAll("button[data-rel]").forEach((b) =>
     b.addEventListener("click", async () => {
-      const form = await openPersonForm(`Add ${b.dataset.rel}`);
+      const form = await openPersonForm(`Add ${b.dataset.rel}`, {}, {
+        showPedigree: b.dataset.rel !== "spouse",
+      });
       if (!form) return;
       setStatus(`Adding ${b.dataset.rel}…`);
       try {
@@ -381,9 +406,47 @@ async function renderDetail(id) {
     } else {
       avatar.textContent = (displayName(p)[0] || "?").toUpperCase();
     }
+    renderGallery(id, media);
   } catch {
     /* leave the loading text */
   }
+}
+
+// Thumbnails of every photo on a person: click ★ to make it the main avatar, × to remove.
+function renderGallery(id, media) {
+  const gallery = els.detail.querySelector("#media-gallery");
+  if (!gallery) return;
+  gallery.innerHTML = media
+    .map(
+      (m) => `
+      <div class="thumb ${m.is_primary ? "is-primary" : ""}" style="background-image:url('${m.url}')">
+        <button class="thumb-btn star" data-star="${m.id}" title="Set as main photo">★</button>
+        <button class="thumb-btn del" data-del="${m.id}" title="Remove photo">×</button>
+      </div>`
+    )
+    .join("");
+  gallery.querySelectorAll("button[data-star]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await api.updateMedia(Number(b.dataset.star), { is_primary: true });
+        await loadTree();
+        renderDetail(id);
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    })
+  );
+  gallery.querySelectorAll("button[data-del]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await api.deleteMedia(Number(b.dataset.del));
+        await loadTree();
+        renderDetail(id);
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    })
+  );
 }
 
 function sexLabel(s) {

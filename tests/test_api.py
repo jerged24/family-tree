@@ -202,3 +202,18 @@ def test_only_one_primary_photo(client):
     media = client.get(f"/persons/{pid}/media").json()
     assert sum(1 for m in media if m["is_primary"]) == 1
     assert next(m for m in media if m["is_primary"])["url"] == "https://x/2.png"
+
+
+def test_set_media_primary_via_patch(client):
+    pid = client.post("/persons", json={"given_name": "Mo"}).json()["id"]
+    first = client.post(
+        f"/persons/{pid}/media", json={"url": "https://x/a.png", "is_primary": True}
+    )
+    second = client.post(f"/persons/{pid}/media", json={"url": "https://x/b.png"}).json()["id"]
+
+    # Promote the second to primary; the first must drop.
+    resp = client.patch(f"/media/{second}", json={"is_primary": True})
+    assert resp.status_code == 200 and resp.json()["is_primary"] is True
+    media = {m["id"]: m["is_primary"] for m in client.get(f"/persons/{pid}/media").json()}
+    assert media[second] is True and media[first.json()["id"]] is False
+    assert client.patch("/media/999999", json={"is_primary": True}).status_code == 404

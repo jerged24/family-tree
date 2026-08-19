@@ -92,6 +92,12 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  updateMedia(mediaId, payload) {
+    return patchJSON(`/media/${mediaId}`, payload);
+  },
+  deleteMedia(mediaId) {
+    return request(`/media/${mediaId}`, { method: "DELETE" });
+  },
   exportUrl(version = "5.5.1") {
     return `${API_BASE}/gedcom/export?version=${version}`;
   },

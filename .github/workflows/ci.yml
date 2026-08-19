@@ -2,6 +2,7 @@ name: CI
 
 on:
   push:
+    branches: [main]   # feature branches run via pull_request only (avoids duplicate runs)
   pull_request:
 
 jobs:

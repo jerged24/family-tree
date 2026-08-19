@@ -94,6 +94,16 @@
       </select>
       <input id="pf-dob" placeholder="Date of birth (e.g. 12 JUN 1990)" autocomplete="off" />
       <input id="pf-dod" placeholder="Date of death (optional)" autocomplete="off" />
+      <label id="pf-pedigree-wrap" class="pedigree-wrap" hidden>
+        Relationship type
+        <select id="pf-pedigree">
+          <option value="BIRTH">Birth</option>
+          <option value="ADOPTED">Adopted</option>
+          <option value="STEP">Step</option>
+          <option value="FOSTER">Foster</option>
+          <option value="GUARDIAN">Guardian</option>
+        </select>
+      </label>
       <div class="modal-actions">
         <button type="button" class="btn subtle" id="pf-cancel">Cancel</button>
         <button type="submit" class="btn">Save</button>
