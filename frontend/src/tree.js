@@ -15,13 +15,27 @@ function focalToAspect(fx = 50, fy = 50) {
   return `${px}${py} slice`;
 }
 
+// First 4-digit year in a GEDCOM-ish date string, or null.
+function yearOf(s) {
+  const m = (s || "").match(/\b(\d{4})\b/);
+  return m ? Number(m[1]) : null;
+}
+
 // Possibly-living = no death, and birth unknown or within the last century.
 const CURRENT_YEAR = new Date().getFullYear();
 function isLiving(info) {
   if (info.death) return false;
-  const m = (info.birth || "").match(/\b(\d{4})\b/);
-  const year = m ? Number(m[1]) : null;
+  const year = yearOf(info.birth);
   return year === null || year > CURRENT_YEAR - 100;
+}
+
+// Was this person alive during `year`? People with no known birth year can't be
+// placed on a timeline, so they're treated as "not alive then" (dimmed).
+function aliveInYear(info, year) {
+  const by = yearOf(info.birth);
+  if (by === null || by > year) return false;
+  const dy = yearOf(info.death);
+  return dy === null || dy >= year;
 }
 
 export class TreeView {
@@ -54,11 +68,24 @@ export class TreeView {
     this.pathEdgeSet = new Set();
     this.filterIds = null; // Set of matching ids, or null for "no filter"
     this.privacy = false; // when true, mask living people's name/dates/photo
+    this.eraYear = null; // timeline year, or null for "no timeline"
+    this.layoutMode = "topdown"; // topdown | leftright | radial
   }
 
   setFilter(ids) {
     this.filterIds = ids;
-    this._applyFilter();
+    this._applyDim();
+  }
+
+  setEra(year) {
+    this.eraYear = year;
+    this._applyDim();
+  }
+
+  setLayout(mode) {
+    if (mode === this.layoutMode) return;
+    this.layoutMode = mode;
+    this.render(true);
   }
 
   setPrivacy(on) {
@@ -70,17 +97,22 @@ export class TreeView {
     return this.privacy && isLiving(this._info(node));
   }
 
-  _applyFilter() {
-    const ids = this.filterIds;
-    this.nodeLayer
-      .selectAll("g.node")
-      .classed("dimmed", (n) => ids !== null && !ids.has(n.data.id));
+  // A node is dimmed if it fails the name/decade filter or falls outside the
+  // active timeline year. The two conditions combine (either one dims it).
+  _dimmed(id) {
+    if (this.filterIds !== null && !this.filterIds.has(id)) return true;
+    if (this.eraYear !== null) {
+      const info = this.raw.nodes.find((r) => r.id === id);
+      if (info && !aliveInYear(info, this.eraYear)) return true;
+    }
+    return false;
+  }
+
+  _applyDim() {
+    this.nodeLayer.selectAll("g.node").classed("dimmed", (n) => this._dimmed(n.data.id));
     this.linkLayer
       .selectAll("path.link")
-      .classed(
-        "dimmed",
-        (l) => ids !== null && (!ids.has(l.source.data.id) || !ids.has(l.target.data.id))
-      );
+      .classed("dimmed", (l) => this._dimmed(l.source.data.id) || this._dimmed(l.target.data.id));
   }
 
   setGraph(graph) {
@@ -141,10 +173,13 @@ export class TreeView {
 
     const nodes = [...dag.nodes()];
     const links = [...dag.links()];
+    this._applyLayoutTransform(nodes, links);
     const pt = (p) => (Array.isArray(p) ? p : [p.x, p.y]);
     const lineGen = d3
       .line()
-      .curve(d3.curveMonotoneY)
+      // Top-down keeps sugiyama's routed waypoints (curved); the alternate
+      // layouts draw straight lines between the transformed node centers.
+      .curve(this.layoutMode === "topdown" ? d3.curveMonotoneY : d3.curveLinear)
       .x((p) => pt(p)[0])
       .y((p) => pt(p)[1]);
 
@@ -220,8 +255,38 @@ export class TreeView {
       .style("display", (n) => (this._hasChildren(n.data.id) ? null : "none"));
 
     this._applyHighlights();
-    this._applyFilter();
+    this._applyDim();
     if (fit) this.fitToView(nodes);
+  }
+
+  // Re-map sugiyama's top-down coordinates into the active layout. Mutates each
+  // node's x/y in place; for the alternate modes it also rewrites link waypoints
+  // (the straight-line generator then connects the transformed centers).
+  _applyLayoutTransform(nodes, links) {
+    const mode = this.layoutMode;
+    if (mode === "topdown" || !nodes.length) return;
+
+    if (mode === "leftright") {
+      for (const n of nodes) [n.x, n.y] = [n.y, n.x];
+      for (const l of links) l.points = l.points.map((p) => (Array.isArray(p) ? [p[1], p[0]] : [p.y, p.x]));
+      return;
+    }
+
+    if (mode === "radial") {
+      const xs = nodes.map((n) => n.x);
+      const ys = nodes.map((n) => n.y);
+      const minX = Math.min(...xs);
+      const spanX = Math.max(...xs) - minX || 1;
+      const minY = Math.min(...ys);
+      const sweep = 1.8 * Math.PI; // leave an angular gap so the ends don't overlap
+      for (const n of nodes) {
+        const theta = ((n.x - minX) / spanX) * sweep - sweep / 2 + Math.PI / 2;
+        const r = n.y - minY + 70; // generations become concentric rings
+        n.x = Math.cos(theta) * r;
+        n.y = Math.sin(theta) * r;
+      }
+      for (const l of links) l.points = [[l.source.x, l.source.y], [l.target.x, l.target.y]];
+    }
   }
 
   _hasChildren(id) {

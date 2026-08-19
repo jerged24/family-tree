@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+
 import pytest
 from playwright.sync_api import Page, expect
 
@@ -265,6 +267,50 @@ def test_privacy_hides_living_people(page: Page, live):
 
     page.uncheck("#privacy-toggle")
     page.wait_for_function(_has_node("Carol Smith"))
+
+
+def test_layout_mode_switch(page: Page, live):
+    """Switching the layout mode re-lays-out the tree (node transforms change)."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    before = page.eval_on_selector_all(
+        "#tree-svg g.node", "els => els.map(e => e.getAttribute('transform'))"
+    )
+    page.select_option("#layout-mode", "radial")
+    page.wait_for_function(
+        "prev => JSON.stringify([...document.querySelectorAll('#tree-svg g.node')]"
+        ".map(e => e.getAttribute('transform'))) !== prev",
+        arg=json.dumps(before),
+    )
+    assert page.locator("#tree-svg g.node").count() == 4  # all people survive the relayout
+
+
+def test_timeline_highlights_year(page: Page, live):
+    """The timeline slider dims people who weren't alive in the chosen year."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    page.click("#timeline-btn")
+    page.wait_for_selector("#timeline:not([hidden])")
+    # Fixture: John b.1900 d.1970; Mary b.1905; Carol b.~1930. In 1902 only John is alive.
+    page.eval_on_selector(
+        "#era-slider",
+        "el => { el.value = '1902'; el.dispatchEvent(new Event('input', {bubbles: true})); }",
+    )
+    page.wait_for_function(
+        "() => { const d = [...document.querySelectorAll('#tree-svg g.node.dimmed text.name')]"
+        ".map(t => t.textContent);"
+        " return d.includes('Mary Jones') && d.includes('Carol Smith')"
+        " && !d.includes('John Smith'); }"
+    )
+    # Turning the timeline off clears all dimming.
+    page.click("#timeline-off")
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node.dimmed').length === 0")
 
 
 def test_godparent_link(page: Page, live):

@@ -36,6 +36,12 @@ const els = {
   reloadBtn: document.getElementById("reload-btn"),
   clearCompare: document.getElementById("clear-compare"),
   viewMode: document.getElementById("view-mode"),
+  layoutMode: document.getElementById("layout-mode"),
+  timelineBtn: document.getElementById("timeline-btn"),
+  timeline: document.getElementById("timeline"),
+  eraSlider: document.getElementById("era-slider"),
+  eraLabel: document.getElementById("era-label"),
+  timelineOff: document.getElementById("timeline-off"),
   filterText: document.getElementById("filter-text"),
   filterDecade: document.getElementById("filter-decade"),
   privacyToggle: document.getElementById("privacy-toggle"),
@@ -256,6 +262,7 @@ async function loadTree() {
     view.setGraph(graph);
     populateDecades(graph.nodes);
     applyFilter();
+    if (!els.timeline.hidden) configureTimeline(); // keep the era range in sync with the data
     const empty = graph.nodes.length === 0;
     els.empty.hidden = !empty;
     setStatus(empty ? "No people yet" : `${graph.nodes.length} people · ${graph.edges.length} links`);
@@ -282,6 +289,48 @@ function populateDecades(nodes) {
   for (const d of [...decades].sort((a, b) => a - b)) opts.push(`<option value="${d}">${d}s</option>`);
   els.filterDecade.innerHTML = opts.join("");
   els.filterDecade.value = decades.has(Number(current)) ? current : "";
+}
+
+// ---- timeline / era slider: highlight who was alive in the chosen year ----
+function timelineRange() {
+  const years = [];
+  for (const n of view.raw.nodes) {
+    const b = yearOf(n.birth);
+    if (b) years.push(b);
+    const d = yearOf(n.death);
+    if (d) years.push(d);
+  }
+  return years.length ? [Math.min(...years), Math.max(...years)] : null;
+}
+
+function configureTimeline() {
+  const range = timelineRange();
+  if (!range) {
+    setStatus("No dated people to place on a timeline");
+    return false;
+  }
+  const [min, max] = range;
+  els.eraSlider.min = String(min);
+  els.eraSlider.max = String(max);
+  // Preserve the current year if it's still in range, else start at the end.
+  const cur = Number(els.eraSlider.value);
+  const year = cur >= min && cur <= max ? cur : max;
+  els.eraSlider.value = String(year);
+  els.eraLabel.textContent = String(year);
+  view.setEra(year);
+  return true;
+}
+
+function toggleTimeline() {
+  if (els.timeline.hidden) {
+    if (!configureTimeline()) return; // nothing dated → stay off
+    els.timeline.hidden = false;
+    els.timelineBtn.classList.add("active");
+  } else {
+    els.timeline.hidden = true;
+    els.timelineBtn.classList.remove("active");
+    view.setEra(null);
+  }
 }
 
 function applyFilter() {
@@ -664,6 +713,14 @@ els.privacyToggle.addEventListener("change", () => view.setPrivacy(els.privacyTo
 
 els.reloadBtn.addEventListener("click", loadTree);
 els.viewMode.addEventListener("change", loadTree);
+els.layoutMode.addEventListener("change", () => view.setLayout(els.layoutMode.value));
+els.timelineBtn.addEventListener("click", toggleTimeline);
+els.timelineOff.addEventListener("click", toggleTimeline);
+els.eraSlider.addEventListener("input", () => {
+  const year = Number(els.eraSlider.value);
+  els.eraLabel.textContent = String(year);
+  view.setEra(year);
+});
 els.filterText.addEventListener("input", applyFilter);
 els.filterDecade.addEventListener("change", applyFilter);
 els.clearCompare.addEventListener("click", () => {
