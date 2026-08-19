@@ -47,7 +47,7 @@ def test_tree_renders_all_people(page: Page, live):
     assert set(names) == {"John Smith", "Mary Jones", "Carol Smith", "David Smith Jr"}
     assert page.locator("#tree-svg path.link").count() == 4
     # David is adopted → both parent edges are dashed.
-    assert page.locator("#tree-svg path.link.adopted").count() == 2
+    assert page.locator("#tree-svg path.link.ped-adopted").count() == 2
     expect(page.locator("#empty-state")).to_be_hidden()
 
 
@@ -226,4 +226,23 @@ def test_name_capitalization_and_adopted_child(page: Page, live):
     page.select_option("#pf-pedigree", "ADOPTED")
     page.locator("#person-form button[type=submit]").click()
     page.wait_for_function(_has_node("Junior Doe"))
-    expect(page.locator("#tree-svg path.link.adopted")).to_have_count(1)
+    expect(page.locator("#tree-svg path.link.ped-adopted")).to_have_count(1)
+
+
+def test_filter_dims_non_matching(page: Page, live):
+    """The name filter dims people who don't match and clears cleanly."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    page.fill("#filter-text", "smith")  # fixture surnames are Smith and Jones
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node.dimmed').length > 0")
+    dimmed = page.eval_on_selector_all(
+        "#tree-svg g.node.dimmed text.name", "els => els.map(e => e.textContent)"
+    )
+    assert any("Jones" in n for n in dimmed)  # Mary Jones doesn't match → dimmed
+    assert not any("Smith" in n for n in dimmed)  # Smiths match → not dimmed
+
+    page.fill("#filter-text", "")
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node.dimmed').length === 0")

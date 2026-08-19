@@ -140,7 +140,12 @@ body { display: flex; flex-direction: column; }
 
 /* SVG node/link styling */
 .link { fill: none; stroke: #b6c0cc; stroke-width: 1.6px; }
-.link.adopted { stroke-dasharray: 5 4; }
+.link.non-birth { stroke-dasharray: 5 4; }
+.link.ped-adopted { stroke: #9b51e0; }
+.link.ped-step { stroke: #2d9cdb; }
+.link.ped-foster { stroke: #f2994a; }
+.link.ped-guardian { stroke: #27ae60; }
+.link.ped-sealed { stroke: #8a94a6; }
 .link.on-path { stroke: var(--path); stroke-width: 2.6px; }
 
 .node { cursor: pointer; }
@@ -226,3 +231,17 @@ body { display: flex; flex-direction: column; }
 .thumb-btn.star { top: 2px; left: 2px; }
 .thumb-btn.del { top: 2px; right: 2px; }
 .thumb.is-primary .thumb-btn.star { opacity: 1; color: var(--selected); }
+
+/* ---- Legend swatches for relationship types ---- */
+.line-dashed.ped-adopted { border-top-color: #9b51e0; }
+.line-dashed.ped-step { border-top-color: #2d9cdb; }
+.line-dashed.ped-foster { border-top-color: #f2994a; }
+.line-dashed.ped-guardian { border-top-color: #27ae60; }
+
+/* ---- Filter (dim non-matching) ---- */
+.node.dimmed { opacity: 0.16; }
+.link.dimmed { opacity: 0.1; }
+.filter-input { font: inherit; font-size: 0.82rem; padding: 0.35rem 0.5rem; width: 9rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); }
+.filter-select { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.4rem; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--ink); }

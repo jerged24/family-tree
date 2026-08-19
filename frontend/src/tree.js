@@ -34,6 +34,25 @@ export class TreeView {
     this.compareIds = [];
     this.pathNodeSet = new Set();
     this.pathEdgeSet = new Set();
+    this.filterIds = null; // Set of matching ids, or null for "no filter"
+  }
+
+  setFilter(ids) {
+    this.filterIds = ids;
+    this._applyFilter();
+  }
+
+  _applyFilter() {
+    const ids = this.filterIds;
+    this.nodeLayer
+      .selectAll("g.node")
+      .classed("dimmed", (n) => ids !== null && !ids.has(n.data.id));
+    this.linkLayer
+      .selectAll("path.link")
+      .classed(
+        "dimmed",
+        (l) => ids !== null && (!ids.has(l.source.data.id) || !ids.has(l.target.data.id))
+      );
   }
 
   setGraph(graph) {
@@ -101,7 +120,7 @@ export class TreeView {
       .x((p) => pt(p)[0])
       .y((p) => pt(p)[1]);
 
-    // Edge pedigree lookup (source->target) for dashed adopted links.
+    // Edge pedigree lookup (source->target) — drives dashed + per-type colored links.
     const pedigree = new Map(this.raw.edges.map((e) => [`${e.source}->${e.target}`, e.pedigree]));
 
     // ---- links ----
@@ -111,8 +130,8 @@ export class TreeView {
       .join("path")
       .attr("class", (l) => {
         const key = `${l.source.data.id}->${l.target.data.id}`;
-        const adopted = (pedigree.get(key) || "BIRTH") !== "BIRTH";
-        return `link${adopted ? " adopted" : ""}`;
+        const ped = pedigree.get(key) || "BIRTH";
+        return ped === "BIRTH" ? "link" : `link non-birth ped-${ped.toLowerCase()}`;
       })
       .attr("d", (l) => lineGen(l.points));
 
@@ -153,6 +172,7 @@ export class TreeView {
       .style("display", (n) => (this._hasChildren(n.data.id) ? null : "none"));
 
     this._applyHighlights();
+    this._applyFilter();
     if (fit) this.fitToView(nodes);
   }
 
