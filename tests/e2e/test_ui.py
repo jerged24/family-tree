@@ -26,10 +26,20 @@ def _toggle(page: Page, name: str) -> None:
     _node(page, name).locator("circle.toggle").dispatch_event("click")
 
 
+def _login(page: Page) -> None:
+    """Dismiss the login overlay if present."""
+    page.wait_for_selector("#login-overlay", state="attached")
+    if page.locator("#login-overlay").is_visible():
+        page.fill("#login-password", "test-pass")
+        page.locator("#login-form button[type=submit]").click()
+        page.wait_for_selector("#login-overlay", state="hidden")
+
+
 # --------------------------------------------------------------------------- #
 def test_tree_renders_all_people(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     names = page.eval_on_selector_all(
@@ -45,6 +55,7 @@ def test_tree_renders_all_people(page: Page, live):
 def test_status_reports_counts(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
     expect(page.locator("#status")).to_contain_text("4 people")
 
@@ -52,6 +63,7 @@ def test_status_reports_counts(page: Page, live):
 def test_relationship_analysis(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")
@@ -71,6 +83,7 @@ def test_relationship_analysis(page: Page, live):
 def test_adopted_child_zero_kinship(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")
@@ -85,6 +98,7 @@ def test_adopted_child_zero_kinship(page: Page, live):
 def test_collapse_hides_children_when_both_parents_collapsed(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
     assert page.locator("#tree-svg g.node").count() == 4
 
@@ -102,6 +116,7 @@ def test_collapse_hides_children_when_both_parents_collapsed(page: Page, live):
 def test_import_via_file_input(page: Page, live):
     # No seeding — start from an empty database.
     page.goto(live.url())
+    _login(page)
     expect(page.locator("#empty-state")).to_be_visible()
 
     page.set_input_files("#import-input", str(FIXTURE))
@@ -116,6 +131,7 @@ def test_import_via_file_input(page: Page, live):
 def test_load_sample_button(page: Page, live):
     # Empty DB → click "Load sample" → the bundled 9-person family renders.
     page.goto(live.url())
+    _login(page)
     expect(page.locator("#empty-state")).to_be_visible()
     page.locator("#sample-btn").click()
     page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 9")
@@ -128,6 +144,7 @@ def test_load_sample_button(page: Page, live):
 def test_add_photo_shows_avatar_on_node(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")

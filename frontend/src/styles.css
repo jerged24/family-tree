@@ -164,6 +164,9 @@ body { display: flex; flex-direction: column; }
 
 .login-overlay { position: fixed; inset: 0; background: rgba(31,41,51,0.55);
   display: flex; align-items: center; justify-content: center; z-index: 50; }
+/* A class rule for display would otherwise override the [hidden] attribute's
+   display:none, so state it explicitly (same pattern as .empty-state above). */
+.login-overlay[hidden] { display: none; }
 .login-card { background: var(--panel); padding: 1.6rem; border-radius: 12px;
   box-shadow: var(--shadow); width: 280px; display: flex; flex-direction: column; gap: 0.6rem; }
 .login-card h2 { margin: 0; }
