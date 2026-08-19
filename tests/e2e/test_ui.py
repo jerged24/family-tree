@@ -26,10 +26,19 @@ def _toggle(page: Page, name: str) -> None:
     _node(page, name).locator("circle.toggle").dispatch_event("click")
 
 
+def _login(page: Page) -> None:
+    """Wait for the login overlay to appear, then authenticate."""
+    page.wait_for_selector("#login-password", state="visible")
+    page.fill("#login-password", "test-pass")
+    page.locator("#login-form button[type=submit]").click()
+    page.wait_for_selector("#login-overlay", state="hidden")
+
+
 # --------------------------------------------------------------------------- #
 def test_tree_renders_all_people(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     names = page.eval_on_selector_all(
@@ -45,6 +54,7 @@ def test_tree_renders_all_people(page: Page, live):
 def test_status_reports_counts(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
     expect(page.locator("#status")).to_contain_text("4 people")
 
@@ -52,6 +62,7 @@ def test_status_reports_counts(page: Page, live):
 def test_relationship_analysis(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")
@@ -71,6 +82,7 @@ def test_relationship_analysis(page: Page, live):
 def test_adopted_child_zero_kinship(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")
@@ -85,6 +97,7 @@ def test_adopted_child_zero_kinship(page: Page, live):
 def test_collapse_hides_children_when_both_parents_collapsed(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
     assert page.locator("#tree-svg g.node").count() == 4
 
@@ -102,6 +115,7 @@ def test_collapse_hides_children_when_both_parents_collapsed(page: Page, live):
 def test_import_via_file_input(page: Page, live):
     # No seeding — start from an empty database.
     page.goto(live.url())
+    _login(page)
     expect(page.locator("#empty-state")).to_be_visible()
 
     page.set_input_files("#import-input", str(FIXTURE))
@@ -116,6 +130,7 @@ def test_import_via_file_input(page: Page, live):
 def test_load_sample_button(page: Page, live):
     # Empty DB → click "Load sample" → the bundled 9-person family renders.
     page.goto(live.url())
+    _login(page)
     expect(page.locator("#empty-state")).to_be_visible()
     page.locator("#sample-btn").click()
     page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 9")
@@ -128,6 +143,7 @@ def test_load_sample_button(page: Page, live):
 def test_add_photo_shows_avatar_on_node(page: Page, live):
     live.seed()
     page.goto(live.url())
+    _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
     _select(page, "John Smith")
@@ -143,3 +159,44 @@ def test_add_photo_shows_avatar_on_node(page: Page, live):
             const img = g && g.querySelector('image.avatar-img');
             return img && img.getAttribute('href') && img.style.display !== 'none';
         }""")
+
+
+def _has_node(name: str) -> str:
+    return (
+        "[...document.querySelectorAll('#tree-svg g.node text.name')]"
+        f".some(t => t.textContent === {name!r})"
+    )
+
+
+def test_add_edit_delete_person(page: Page, live):
+    """Owner data entry: add a person, rename via Edit (node label must update
+    in-session), then Delete."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    # Add a person via the toolbar modal.
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Ada")
+    page.fill("#pf-surname", "Lovelace")
+    page.fill("#pf-dob", "10 DEC 1815")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Ada Lovelace"))
+
+    # Edit: the form pre-fills, rename the surname; the node label must refresh.
+    _select(page, "Ada Lovelace")
+    page.wait_for_selector("#edit-person")
+    page.click("#edit-person")
+    page.wait_for_selector("#pf-given", state="visible")
+    assert page.input_value("#pf-surname") == "Lovelace"  # pre-filled
+    page.fill("#pf-surname", "Byron")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Ada Byron"))
+
+    # Delete (accept the confirm dialog); the node disappears.
+    _select(page, "Ada Byron")
+    page.wait_for_selector("#delete-person")
+    page.once("dialog", lambda d: d.accept())
+    page.click("#delete-person")
+    page.wait_for_function(f"!{_has_node('Ada Byron')}")

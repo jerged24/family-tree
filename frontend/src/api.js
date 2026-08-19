@@ -2,10 +2,17 @@
 // Override at runtime with ?api=http://host:port  (handy when ports differ).
 
 const params = new URLSearchParams(location.search);
-export const API_BASE = params.get("api") || "http://127.0.0.1:8000";
+// Default to same-origin ("" → relative paths like "/persons") so the SPA served
+// by the backend works in production. The ?api= override still points elsewhere
+// (used by the e2e fixture when ports differ).
+export const API_BASE = params.get("api") || "";
 
 async function request(path, options = {}) {
-  const res = await fetch(API_BASE + path, options);
+  const res = await fetch(API_BASE + path, { credentials: "include", ...options });
+  if (res.status === 401) {
+    document.dispatchEvent(new CustomEvent("needs-login"));
+    throw new Error("Login required");
+  }
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -15,6 +22,16 @@ async function request(path, options = {}) {
   }
   return res.status === 204 ? null : res.json();
 }
+
+function bodyJSON(method, path, payload) {
+  return request(path, {
+    method,
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+const postJSON = (path, payload) => bodyJSON("POST", path, payload);
+const patchJSON = (path, payload) => bodyJSON("PATCH", path, payload);
 
 export const api = {
   tree(rootId = null, mode = "full") {
@@ -26,6 +43,33 @@ export const api = {
   },
   personEvents(id) {
     return request(`/persons/${id}/events`);
+  },
+  personMemberships(id) {
+    return request(`/persons/${id}/memberships`);
+  },
+  createPerson(payload) {
+    return postJSON("/persons", payload);
+  },
+  updatePerson(id, payload) {
+    return patchJSON(`/persons/${id}`, payload);
+  },
+  deletePerson(id) {
+    return request(`/persons/${id}`, { method: "DELETE" });
+  },
+  createEvent(payload) {
+    return postJSON("/events", payload);
+  },
+  updateEvent(id, payload) {
+    return patchJSON(`/events/${id}`, payload);
+  },
+  deleteEvent(id) {
+    return request(`/events/${id}`, { method: "DELETE" });
+  },
+  createFamily() {
+    return postJSON("/families", {});
+  },
+  addMember(familyId, payload) {
+    return postJSON(`/families/${familyId}/members`, payload);
   },
   relationship(a, b) {
     return request(`/tree/relationship/${a}/${b}`);
@@ -50,5 +94,18 @@ export const api = {
   },
   exportUrl(version = "5.5.1") {
     return `${API_BASE}/gedcom/export?version=${version}`;
+  },
+  login(password) {
+    return request("/admin/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+  },
+  uploadMedia(id, file, { is_primary = false } = {}) {
+    const body = new FormData();
+    body.append("file", file);
+    body.append("is_primary", String(is_primary));
+    return request(`/persons/${id}/media/upload`, { method: "POST", body });
   },
 };

@@ -1,7 +1,13 @@
-"""Fixtures for browser (e2e) tests: isolated live API + static frontend servers.
+"""Fixtures for browser (e2e) tests: an isolated live API server.
 
-Each test gets its own uvicorn API (fresh temp SQLite DB) and a static file server
-for ``frontend/``, on ephemeral ports. Tests opt into data with ``live.seed()``.
+Each test gets its own uvicorn API (fresh temp SQLite DB) on an ephemeral port.
+The API server also serves the SPA itself (``backend/app/main.py`` mounts
+``frontend/`` at ``/``), so Playwright is pointed at the API's own
+``/index.html`` rather than a separate static server. This keeps the login
+session cookie same-origin: a cross-port static server would make the cookie
+cross-site for ``SameSite=Lax`` purposes in some browser/CORS configurations,
+which is fragile to rely on. Tests opt into data with ``live.seed()``, which
+authenticates via the admin login endpoint before importing.
 """
 
 from __future__ import annotations
@@ -39,41 +45,46 @@ def _wait_until_up(url: str, tries: int = 80) -> None:
     raise RuntimeError(f"server did not come up: {url}")
 
 
-class Live:
-    """Handles to the running API and frontend, plus test helpers."""
+ADMIN_PASSWORD = "test-pass"
 
-    def __init__(self, api: str, web: str) -> None:
+
+class Live:
+    """Handle to the running API (which also serves the SPA), plus test helpers."""
+
+    def __init__(self, api: str) -> None:
         self.api = api
-        self.web = web
 
     def seed(self) -> dict:
-        """Import the sample GEDCOM into the running API."""
-        with open(FIXTURE, "rb") as fh:
-            resp = httpx.post(
-                f"{self.api}/gedcom/import",
-                files={"file": ("sample.ged", fh, "text/plain")},
-                timeout=15,
-            )
-        resp.raise_for_status()
-        return resp.json()
+        """Log in as admin, then import the sample GEDCOM into the running API."""
+        with httpx.Client(base_url=self.api, timeout=15) as client:
+            login_resp = client.post("/admin/login", json={"password": ADMIN_PASSWORD})
+            login_resp.raise_for_status()
+            with open(FIXTURE, "rb") as fh:
+                resp = client.post(
+                    "/gedcom/import",
+                    files={"file": ("sample.ged", fh, "text/plain")},
+                )
+            resp.raise_for_status()
+            return resp.json()
 
     def url(self) -> str:
-        """Frontend URL wired to this API instance."""
-        return f"{self.web}/index.html?api={self.api}"
+        """Frontend URL (served by the API itself) wired to this API instance."""
+        return f"{self.api}/index.html?api={self.api}"
 
 
 @pytest.fixture
 def live(tmp_path):
-    api_port, web_port = _free_port(), _free_port()
+    api_port = _free_port()
     api_url = f"http://127.0.0.1:{api_port}"
-    web_url = f"http://127.0.0.1:{web_port}"
     db_path = (tmp_path / "e2e.db").as_posix()
 
     env = {
         **os.environ,
         "DATABASE_URL": f"sqlite:///{db_path}",
-        "CORS_ORIGINS": web_url,
+        "CORS_ORIGINS": api_url,
         "SQL_ECHO": "false",
+        "ADMIN_PASSWORD": ADMIN_PASSWORD,
+        "SECRET_KEY": "test-secret",
     }
 
     api_proc = subprocess.Popen(
@@ -92,27 +103,12 @@ def live(tmp_path):
         cwd=ROOT,
         env=env,
     )
-    web_proc = subprocess.Popen(
-        [
-            sys.executable,
-            "-m",
-            "http.server",
-            str(web_port),
-            "--directory",
-            str(ROOT / "frontend"),
-            "--bind",
-            "127.0.0.1",
-        ],
-        cwd=ROOT,
-    )
     try:
         _wait_until_up(f"{api_url}/health")
-        _wait_until_up(f"{web_url}/index.html")
-        yield Live(api_url, web_url)
+        yield Live(api_url)
     finally:
-        for proc in (api_proc, web_proc):
-            proc.terminate()
-            try:
-                proc.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                proc.kill()
+        api_proc.terminate()
+        try:
+            api_proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            api_proc.kill()

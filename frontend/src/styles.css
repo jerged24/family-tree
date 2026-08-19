@@ -161,3 +161,46 @@ body { display: flex; flex-direction: column; }
 .node.on-path .card { stroke: var(--path); stroke-width: 2.4px; }
 .node .toggle { fill: var(--panel); stroke: #a9b4c0; stroke-width: 1.3px; }
 .node .toggle-sign { font-size: 12px; font-weight: 700; fill: var(--muted); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+
+.login-overlay { position: fixed; inset: 0; background: rgba(31,41,51,0.55);
+  display: flex; align-items: center; justify-content: center; z-index: 50; }
+/* A class rule for display would otherwise override the [hidden] attribute's
+   display:none, so state it explicitly (same pattern as .empty-state above). */
+.login-overlay[hidden] { display: none; }
+.login-card { background: var(--panel); padding: 1.6rem; border-radius: 12px;
+  box-shadow: var(--shadow); width: 280px; display: flex; flex-direction: column; gap: 0.6rem; }
+.login-card h2 { margin: 0; }
+.login-card input { font: inherit; padding: 0.5rem; border: 1px solid var(--border); border-radius: 7px; }
+.login-error { color: var(--path); font-size: 0.82rem; min-height: 1em; }
+
+/* ---- Add-person modal ---- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(31, 41, 51, 0.55);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal-overlay[hidden] { display: none; }
+.modal-card {
+  background: var(--panel); padding: 1.5rem; border-radius: 12px;
+  box-shadow: var(--shadow); width: 300px;
+  display: flex; flex-direction: column; gap: 0.6rem;
+}
+.modal-card h2 { margin: 0 0 0.2rem; }
+.modal-card input, .modal-card select {
+  font: inherit; padding: 0.5rem; border: 1px solid var(--border);
+  border-radius: 7px; background: var(--panel); color: var(--ink);
+}
+.modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
+
+/* ---- Add-relative row ---- */
+.add-relatives { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; margin: 0 0 0.6rem; }
+.add-label { font-size: 0.75rem; color: var(--muted); }
+
+/* ---- Photo upload affordances ---- */
+.photo-file-btn { cursor: pointer; white-space: nowrap; }
+.detail .avatar.drop-hover { outline: 2px dashed var(--accent); outline-offset: 2px; }
+
+/* ---- Edit/Delete entity actions ---- */
+.entity-actions { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
+.btn.danger { color: var(--path); }
+.btn.danger:hover { background: #fdecec; border-color: var(--path); }
