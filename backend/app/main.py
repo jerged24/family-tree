@@ -10,12 +10,14 @@ from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.app.api.deps import require_admin
 from backend.app.api.routes import admin_auth, events, families, gedcom, media, persons, tree
 from backend.app.config import settings
 from backend.app.database import init_db
+from backend.app.storage import media_dir
 
 
 @asynccontextmanager
@@ -60,6 +62,8 @@ def create_app() -> FastAPI:
     for router in guarded:
         app.include_router(router, dependencies=[Depends(require_admin)])
     app.include_router(admin_auth.router)  # unprotected: login lives here
+
+    app.mount("/media/files", StaticFiles(directory=str(media_dir())), name="media")
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

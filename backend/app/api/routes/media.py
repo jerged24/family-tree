@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models import Media, Person
 from backend.app.schemas import MediaCreate, MediaRead
+from backend.app.storage import save_upload
 
 router = APIRouter(tags=["media"])
 
@@ -26,6 +27,38 @@ def add_media(person_id: int, payload: MediaCreate, db: Session = Depends(get_db
         for existing in db.scalars(select(Media).where(Media.person_id == person_id)):
             existing.is_primary = False
     item = Media(person_id=person_id, **payload.model_dump())
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return item
+
+
+@router.post(
+    "/persons/{person_id}/media/upload",
+    response_model=MediaRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def upload_media(
+    person_id: int,
+    file: UploadFile = File(...),
+    caption: str | None = Form(None),
+    is_primary: bool = Form(False),
+    db: Session = Depends(get_db),
+) -> Media:
+    if db.get(Person, person_id) is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Person {person_id} not found")
+    data = await file.read()
+    _, url = save_upload(data, file.content_type, file.filename)
+    if is_primary:
+        for existing in db.scalars(select(Media).where(Media.person_id == person_id)):
+            existing.is_primary = False
+    item = Media(
+        person_id=person_id,
+        url=url,
+        caption=caption,
+        mime_type=file.content_type,
+        is_primary=is_primary,
+    )
     db.add(item)
     db.commit()
     db.refresh(item)
