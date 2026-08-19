@@ -42,6 +42,10 @@ const els = {
   eraSlider: document.getElementById("era-slider"),
   eraLabel: document.getElementById("era-label"),
   timelineOff: document.getElementById("timeline-off"),
+  dedupeBtn: document.getElementById("dedupe-btn"),
+  dedupeModal: document.getElementById("dedupe-modal"),
+  dedupeList: document.getElementById("dedupe-list"),
+  dedupeClose: document.getElementById("dedupe-close"),
   filterText: document.getElementById("filter-text"),
   filterDecade: document.getElementById("filter-decade"),
   privacyToggle: document.getElementById("privacy-toggle"),
@@ -330,6 +334,54 @@ function toggleTimeline() {
     els.timeline.hidden = true;
     els.timelineBtn.classList.remove("active");
     view.setEra(null);
+  }
+}
+
+// ---- duplicate detection + merge ----
+async function openDuplicates() {
+  els.dedupeModal.hidden = false;
+  els.dedupeList.innerHTML = '<div class="dedupe-empty">Scanning…</div>';
+  try {
+    renderDuplicates(await api.duplicates());
+  } catch (err) {
+    els.dedupeList.innerHTML = `<div class="dedupe-empty">${err.message}</div>`;
+  }
+}
+
+function renderDuplicates(pairs) {
+  if (!pairs.length) {
+    els.dedupeList.innerHTML = '<div class="dedupe-empty">No possible duplicates found. 🎉</div>';
+    return;
+  }
+  els.dedupeList.innerHTML = pairs
+    .map((p) => {
+      const a = p.a.display_name;
+      const b = p.b.display_name;
+      return `<div class="dedupe-pair">
+        <div class="dedupe-reason">${p.reason}</div>
+        <div class="dedupe-people">
+          <div class="dedupe-person">${a}<div class="dp-sub">#${p.a.id}</div></div>
+          <div class="vs">vs</div>
+          <div class="dedupe-person">${b}<div class="dp-sub">#${p.b.id}</div></div>
+        </div>
+        <div class="dedupe-keep">
+          <button class="btn" data-keep="${p.a.id}" data-merge="${p.b.id}">Keep ${a}</button>
+          <button class="btn" data-keep="${p.b.id}" data-merge="${p.a.id}">Keep ${b}</button>
+        </div>
+      </div>`;
+    })
+    .join("");
+}
+
+async function mergePair(keepId, mergeId) {
+  try {
+    await api.mergePersons(keepId, mergeId);
+    // If either side of the merge was selected/compared, drop the stale id.
+    if (String(state.selectedId) === String(mergeId)) state.selectedId = keepId;
+    await loadTree();
+    renderDuplicates(await api.duplicates()); // refresh the remaining pairs in place
+  } catch (err) {
+    setStatus(err.message, true);
   }
 }
 
@@ -720,6 +772,14 @@ els.eraSlider.addEventListener("input", () => {
   const year = Number(els.eraSlider.value);
   els.eraLabel.textContent = String(year);
   view.setEra(year);
+});
+els.dedupeBtn.addEventListener("click", openDuplicates);
+els.dedupeClose.addEventListener("click", () => {
+  els.dedupeModal.hidden = true;
+});
+els.dedupeList.addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-keep]");
+  if (btn) mergePair(btn.dataset.keep, btn.dataset.merge);
 });
 els.filterText.addEventListener("input", applyFilter);
 els.filterDecade.addEventListener("change", applyFilter);

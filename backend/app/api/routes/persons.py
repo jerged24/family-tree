@@ -9,12 +9,14 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models import Event, Person, Relationship
 from backend.app.schemas import (
+    DuplicatePair,
     EventRead,
     PersonCreate,
     PersonRead,
     PersonUpdate,
     RelationshipRead,
 )
+from backend.app.services.merge_service import find_duplicates, merge_persons
 
 router = APIRouter(prefix="/persons", tags=["persons"])
 
@@ -46,6 +48,36 @@ def list_persons(
     if surname:
         stmt = stmt.where(Person.surname == surname)
     return list(db.scalars(stmt.offset(offset).limit(limit)))
+
+
+# Declared before "/{person_id}" so the literal path wins the route match.
+@router.get("/duplicates", response_model=list[DuplicatePair])
+def list_duplicates(db: Session = Depends(get_db)) -> list[DuplicatePair]:
+    """Candidate duplicate people (same name, non-contradicting birth years)."""
+    pairs = find_duplicates(db)
+    by_id = {p.id: p for p in db.scalars(select(Person))}
+    return [
+        DuplicatePair(
+            reason=c.reason,
+            birth_year=c.birth_year,
+            a=PersonRead.model_validate(by_id[c.a_id]),
+            b=PersonRead.model_validate(by_id[c.b_id]),
+        )
+        for c in pairs
+    ]
+
+
+@router.post("/{keep_id}/merge/{merge_id}", response_model=PersonRead)
+def merge_person(keep_id: int, merge_id: int, db: Session = Depends(get_db)) -> Person:
+    """Fold ``merge_id`` into ``keep_id`` (reassign links/events/media, delete the loser)."""
+    if keep_id == merge_id:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Cannot merge a person into themselves")
+    keep = _get_or_404(db, keep_id)
+    merge = _get_or_404(db, merge_id)
+    merge_persons(db, keep, merge)
+    db.commit()
+    db.refresh(keep)
+    return keep
 
 
 @router.get("/{person_id}", response_model=PersonRead)

@@ -269,6 +269,31 @@ def test_privacy_hides_living_people(page: Page, live):
     page.wait_for_function(_has_node("Carol Smith"))
 
 
+def test_find_and_merge_duplicate(page: Page, live):
+    """Add a duplicate person, open the finder, merge it away, and confirm it's gone."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    # Two identical "Jane Roe" people → a duplicate pair.
+    for n in (1, 2):
+        page.click("#add-person-btn")
+        page.wait_for_selector("#pf-given", state="visible")
+        page.fill("#pf-given", "Jane")
+        page.fill("#pf-surname", "Roe")
+        page.locator("#person-form button[type=submit]").click()
+        page.wait_for_function(f"document.querySelectorAll('#tree-svg g.node').length === {n}")
+
+    page.click("#dedupe-btn")
+    page.wait_for_selector("#dedupe-modal:not([hidden])")
+    page.wait_for_selector(".dedupe-pair")
+    page.locator(".dedupe-pair .dedupe-keep button").first.click()
+
+    # After merge only one Jane Roe remains, and the finder now reports none.
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 1")
+    page.wait_for_selector(".dedupe-empty")
+
+
 def test_layout_mode_switch(page: Page, live):
     """Switching the layout mode re-lays-out the tree (node transforms change)."""
     live.seed()

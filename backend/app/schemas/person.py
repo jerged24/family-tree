@@ -39,3 +39,12 @@ class PersonRead(PersonBase):
     id: int
     xref_id: str | None = None
     display_name: str
+
+
+class DuplicatePair(BaseModel):
+    """A candidate duplicate: two people plus why they were flagged."""
+
+    reason: str
+    birth_year: int | None = None
+    a: PersonRead
+    b: PersonRead
