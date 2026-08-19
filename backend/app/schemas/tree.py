@@ -19,6 +19,8 @@ class DagNode(BaseModel):
     birth: str | None = None  # display date string, if known
     death: str | None = None
     photo_url: str | None = None  # primary photo, if any
+    photo_focal_x: float = 50.0  # focal point (percent) for avatar cropping
+    photo_focal_y: float = 50.0
     parentIds: list[str] = []  # ids of parent nodes (the DAG links)
 
 

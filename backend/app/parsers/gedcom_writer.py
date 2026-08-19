@@ -8,11 +8,15 @@ with pedigree written under each individual's ``FAMC`` pointer (5.5.1 placement)
 
 from __future__ import annotations
 
+import re
+from datetime import date
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.models import (
     Event,
+    EventType,
     Family,
     PartnerType,
     Pedigree,
@@ -22,14 +26,34 @@ from backend.app.models import (
     Source,
 )
 
+# A person is treated as possibly-living (and masked under privacy) if there is no
+# recorded death and their birth is either unknown or within the last century.
+_LIVING_WINDOW_YEARS = 100
+
 
 class GedcomWriter:
     """Serialises the whole database (or given records) to a GEDCOM string."""
 
-    def __init__(self, db: Session, gedcom_version: str = "5.5.1") -> None:
+    def __init__(
+        self, db: Session, gedcom_version: str = "5.5.1", *, mask_living: bool = False
+    ) -> None:
         self.db = db
         self.version = gedcom_version
+        self.mask_living = mask_living
         self._lines: list[str] = []
+
+    @staticmethod
+    def _is_living(person: Person) -> bool:
+        birth_year: int | None = None
+        for event in person.events:
+            if event.type == EventType.DEATH:
+                return False
+            if event.type == EventType.BIRTH and event.date_value:
+                match = re.search(r"\d{4}", event.date_value)
+                if match:
+                    birth_year = int(match.group())
+        cutoff = date.today().year - _LIVING_WINDOW_YEARS
+        return birth_year is None or birth_year > cutoff
 
     # -- public API ---------------------------------------------------------
     def write_text(self) -> str:
@@ -96,6 +120,17 @@ class GedcomWriter:
 
     def _write_person(self, person: Person) -> None:
         self._line(0, "INDI", xref=self._person_xref(person))
+
+        if self.mask_living and self._is_living(person):
+            # Privacy: hide name, dates, events, and media; keep only the family
+            # structure so the tree shape is preserved.
+            self._line(1, "NAME", "Living /Living/")
+            for rel in person.memberships:
+                if rel.role == RelationshipRole.PARTNER:
+                    self._line(1, "FAMS", self._family_xref(rel.family))
+                elif rel.role == RelationshipRole.CHILD:
+                    self._line(1, "FAMC", self._family_xref(rel.family))
+            return
 
         name = self._format_name(person)
         self._line(1, "NAME", name)
@@ -233,6 +268,6 @@ class GedcomWriter:
         return husband, wife, overflow
 
 
-def export_gedcom(db: Session, gedcom_version: str = "5.5.1") -> str:
+def export_gedcom(db: Session, gedcom_version: str = "5.5.1", *, mask_living: bool = False) -> str:
     """Serialise the entire database to a GEDCOM string."""
-    return GedcomWriter(db, gedcom_version).write_text()
+    return GedcomWriter(db, gedcom_version, mask_living=mask_living).write_text()

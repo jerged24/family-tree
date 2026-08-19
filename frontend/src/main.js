@@ -38,6 +38,7 @@ const els = {
   viewMode: document.getElementById("view-mode"),
   filterText: document.getElementById("filter-text"),
   filterDecade: document.getElementById("filter-decade"),
+  privacyToggle: document.getElementById("privacy-toggle"),
 };
 
 const state = {
@@ -441,8 +442,22 @@ async function renderDetail(id) {
     const avatar = els.detail.querySelector("#detail-avatar");
     if (primary) {
       avatar.style.backgroundImage = `url("${primary.url}")`;
+      avatar.style.backgroundPosition = `${primary.focal_x ?? 50}% ${primary.focal_y ?? 50}%`;
       avatar.classList.add("has-photo");
       avatar.textContent = "";
+      avatar.title = "Click where the face is to set the focus point";
+      avatar.onclick = async (e) => {
+        const r = avatar.getBoundingClientRect();
+        const fx = Math.min(100, Math.max(0, Math.round(((e.clientX - r.left) / r.width) * 100)));
+        const fy = Math.min(100, Math.max(0, Math.round(((e.clientY - r.top) / r.height) * 100)));
+        try {
+          await api.updateMedia(primary.id, { focal_x: fx, focal_y: fy });
+          await loadTree();
+          renderDetail(id);
+        } catch (err) {
+          setStatus(err.message, true);
+        }
+      };
     } else {
       avatar.textContent = (displayName(p)[0] || "?").toUpperCase();
     }
@@ -586,8 +601,11 @@ els.sampleBtn.addEventListener("click", async () => {
 
 els.exportBtn.addEventListener("click", (e) => {
   e.preventDefault();
-  window.open(api.exportUrl(), "_blank");
+  const privacy = els.privacyToggle.checked ? "living" : "none";
+  window.open(api.exportUrl("5.5.1", privacy), "_blank");
 });
+
+els.privacyToggle.addEventListener("change", () => view.setPrivacy(els.privacyToggle.checked));
 
 els.reloadBtn.addEventListener("click", loadTree);
 els.viewMode.addEventListener("change", loadTree);

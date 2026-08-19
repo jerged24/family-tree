@@ -15,6 +15,8 @@ class MediaCreate(BaseModel):
 class MediaUpdate(BaseModel):
     is_primary: bool | None = None
     caption: str | None = Field(default=None, max_length=255)
+    focal_x: float | None = Field(default=None, ge=0, le=100)
+    focal_y: float | None = Field(default=None, ge=0, le=100)
 
 
 class MediaRead(BaseModel):
@@ -26,3 +28,5 @@ class MediaRead(BaseModel):
     caption: str | None = None
     mime_type: str | None = None
     is_primary: bool
+    focal_x: float = 50.0
+    focal_y: float = 50.0

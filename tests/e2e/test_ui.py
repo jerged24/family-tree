@@ -246,3 +246,22 @@ def test_filter_dims_non_matching(page: Page, live):
 
     page.fill("#filter-text", "")
     page.wait_for_function("document.querySelectorAll('#tree-svg g.node.dimmed').length === 0")
+
+
+def test_privacy_hides_living_people(page: Page, live):
+    """The privacy toggle masks living people (Carol b.~1930, no death) as 'Living'."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    page.check("#privacy-toggle")
+    page.wait_for_function(_has_node("Living"))
+    names = page.eval_on_selector_all(
+        "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
+    )
+    assert "Carol Smith" not in names  # b. ~1930, no death → living, masked
+    assert "John Smith" in names  # d. 1970 → not living, still shown
+
+    page.uncheck("#privacy-toggle")
+    page.wait_for_function(_has_node("Carol Smith"))
