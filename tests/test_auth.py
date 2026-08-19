@@ -1,7 +1,6 @@
 """Auth + settings tests."""
-from __future__ import annotations
 
-import os
+from __future__ import annotations
 
 
 def test_settings_read_admin_env(monkeypatch):
