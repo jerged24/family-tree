@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hmac
+
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel
 
@@ -16,7 +18,7 @@ class LoginBody(BaseModel):
 
 @router.post("/login")
 def login(body: LoginBody, request: Request) -> dict[str, str]:
-    if body.password != settings.admin_password:
+    if not hmac.compare_digest(body.password, settings.admin_password):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid password")
     request.session["admin"] = True
     return {"status": "ok"}

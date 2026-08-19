@@ -48,3 +48,29 @@ def test_persons_ok_after_login():
     c = _fresh_client()
     c.post("/admin/login", json={"password": settings.admin_password})
     assert c.get("/persons").status_code == 200
+
+
+def test_create_app_fails_on_default_secrets_in_production(monkeypatch):
+    """In a non-dev env, create_app() must refuse to boot with default secrets."""
+    import pytest
+
+    from backend.app import main
+    from backend.app.config import settings
+
+    monkeypatch.setattr(settings, "env", "production")
+    monkeypatch.setattr(settings, "admin_password", "changeme")
+    monkeypatch.setattr(settings, "secret_key", "dev-insecure-secret-change-me")
+    with pytest.raises(RuntimeError, match="Refusing to start"):
+        main.create_app()
+
+
+def test_create_app_ok_in_production_with_real_secrets(monkeypatch):
+    """Non-default secrets in production must NOT trip the guard."""
+    from backend.app import main
+    from backend.app.config import settings
+
+    monkeypatch.setattr(settings, "env", "production")
+    monkeypatch.setattr(settings, "admin_password", "a-real-owner-password")
+    monkeypatch.setattr(settings, "secret_key", "a-long-random-production-secret")
+    # Should not raise.
+    main.create_app()

@@ -22,6 +22,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5500",
     ]
     sql_echo: bool = False
+    env: str = "dev"  # "dev" (default) relaxes prod-only guards; set "production" to enforce them
     admin_password: str = "changeme"
     secret_key: str = "dev-insecure-secret-change-me"
     media_dir: str = "./media"

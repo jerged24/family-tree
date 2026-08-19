@@ -9,6 +9,9 @@
    - `DATABASE_URL=sqlite:////data/app.db`  (already defaulted in the Dockerfile)
    - `MEDIA_DIR=/data/media`               (already defaulted in the Dockerfile)
    - `PUBLIC_BASE_URL` — your Railway URL, e.g. `https://family-tree-production.up.railway.app`.
+   - `ENV=production` — enforces the fail-fast guard: the app refuses to boot if
+     `ADMIN_PASSWORD`/`SECRET_KEY` are still at their insecure defaults (already
+     defaulted in the Dockerfile). Also enables the Secure flag on the session cookie.
 5. Deploy. Open the generated URL, log in with `ADMIN_PASSWORD`, and click **Load sample**.
 6. Pushes to `main` auto-redeploy. The `/data` volume persists the DB and photos across deploys.
 

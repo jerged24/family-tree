@@ -29,6 +29,16 @@ async def lifespan(_app: FastAPI):
 
 
 def create_app() -> FastAPI:
+    # Fail fast rather than boot with insecure defaults in a non-dev environment.
+    if settings.env != "dev" and (
+        settings.admin_password == "changeme"
+        or settings.secret_key == "dev-insecure-secret-change-me"
+    ):
+        raise RuntimeError(
+            "Refusing to start in non-dev env with default ADMIN_PASSWORD/SECRET_KEY — "
+            "set them via environment variables."
+        )
+
     app = FastAPI(
         title="Family Tree API",
         version="0.1.0",
@@ -49,7 +59,8 @@ def create_app() -> FastAPI:
         SessionMiddleware,
         secret_key=settings.secret_key,
         same_site="lax",
-        https_only=False,  # Railway terminates TLS; cookie still flows over its HTTPS domain
+        # Secure flag on in prod (HTTPS); off in dev/tests so it works over http.
+        https_only=(settings.env != "dev"),
     )
 
     guarded = [

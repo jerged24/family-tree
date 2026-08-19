@@ -15,6 +15,10 @@ _EXT_BY_TYPE = {
     "image/webp": ".webp",
 }
 
+# Content types accepted by the upload endpoint (images only — prevents stored XSS
+# from e.g. an uploaded .html/.svg being served and executed same-origin).
+ALLOWED_IMAGE_TYPES = set(_EXT_BY_TYPE)
+
 
 def media_dir() -> Path:
     path = Path(settings.media_dir)

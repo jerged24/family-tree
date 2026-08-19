@@ -2,7 +2,10 @@
 // Override at runtime with ?api=http://host:port  (handy when ports differ).
 
 const params = new URLSearchParams(location.search);
-export const API_BASE = params.get("api") || "http://127.0.0.1:8000";
+// Default to same-origin ("" → relative paths like "/persons") so the SPA served
+// by the backend works in production. The ?api= override still points elsewhere
+// (used by the e2e fixture when ports differ).
+export const API_BASE = params.get("api") || "";
 
 async function request(path, options = {}) {
   const res = await fetch(API_BASE + path, { credentials: "include", ...options });

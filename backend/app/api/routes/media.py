@@ -9,9 +9,12 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.models import Media, Person
 from backend.app.schemas import MediaCreate, MediaRead
-from backend.app.storage import save_upload
+from backend.app.storage import ALLOWED_IMAGE_TYPES, save_upload
 
 router = APIRouter(tags=["media"])
+
+# Bounded read so a huge upload can't exhaust memory.
+MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
 @router.post(
@@ -47,7 +50,11 @@ async def upload_media(
 ) -> Media:
     if db.get(Person, person_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Person {person_id} not found")
-    data = await file.read()
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(415, "Unsupported media type; images only")
+    data = await file.read(MAX_UPLOAD_BYTES + 1)
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "File too large (max 10 MB)")
     _, url = save_upload(data, file.content_type, file.filename)
     if is_primary:
         for existing in db.scalars(select(Media).where(Media.person_id == person_id)):

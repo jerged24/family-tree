@@ -22,3 +22,24 @@ def test_upload_creates_media_and_serves_file(client):
     served = client.get(url)
     assert served.status_code == 200
     assert served.content == _PNG_1x1
+
+
+def test_upload_rejects_non_image_content_type(client):
+    pid = client.post("/persons", json={"given_name": "Imo", "sex": "F"}).json()["id"]
+    resp = client.post(
+        f"/persons/{pid}/media/upload",
+        files={"file": ("x.txt", b"hi", "text/plain")},
+    )
+    assert resp.status_code == 415
+
+
+def test_upload_rejects_oversized_file(client):
+    from backend.app.api.routes.media import MAX_UPLOAD_BYTES
+
+    pid = client.post("/persons", json={"given_name": "Imo", "sex": "F"}).json()["id"]
+    oversized = b"\x00" * (MAX_UPLOAD_BYTES + 1)
+    resp = client.post(
+        f"/persons/{pid}/media/upload",
+        files={"file": ("big.png", oversized, "image/png")},
+    )
+    assert resp.status_code == 413
