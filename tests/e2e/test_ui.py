@@ -27,12 +27,11 @@ def _toggle(page: Page, name: str) -> None:
 
 
 def _login(page: Page) -> None:
-    """Dismiss the login overlay if present."""
-    page.wait_for_selector("#login-overlay", state="attached")
-    if page.locator("#login-overlay").is_visible():
-        page.fill("#login-password", "test-pass")
-        page.locator("#login-form button[type=submit]").click()
-        page.wait_for_selector("#login-overlay", state="hidden")
+    """Wait for the login overlay to appear, then authenticate."""
+    page.wait_for_selector("#login-password", state="visible")
+    page.fill("#login-password", "test-pass")
+    page.locator("#login-form button[type=submit]").click()
+    page.wait_for_selector("#login-overlay", state="hidden")
 
 
 # --------------------------------------------------------------------------- #
