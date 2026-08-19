@@ -54,6 +54,7 @@ body { display: flex; flex-direction: column; }
 }
 .btn:hover { background: #eef2f7; border-color: #c2ccd6; }
 .btn.subtle { color: var(--muted); }
+.btn.active { background: #eef5ff; border-color: var(--accent); color: var(--accent); }
 .file-btn { display: inline-flex; align-items: center; }
 
 .mode-picker { font-size: 0.8rem; color: var(--muted); display: flex; align-items: center; gap: 0.35rem; }
@@ -74,6 +75,19 @@ body { display: flex; flex-direction: column; }
   background: rgba(255, 255, 255, 0.85);
   padding: 3px 8px; border-radius: 6px; pointer-events: none;
 }
+/* Timeline / era slider docked at the bottom-center of the canvas */
+.timeline {
+  position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.94); border: 1px solid var(--border);
+  border-radius: 10px; padding: 0.4rem 0.7rem; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.12);
+}
+.timeline[hidden] { display: none; }
+.timeline .era-caption { font-size: 0.78rem; color: var(--muted); }
+.timeline input[type="range"] { width: 15rem; accent-color: var(--accent, #2d9cdb); }
+.timeline .era-label { font-variant-numeric: tabular-nums; font-weight: 600; min-width: 2.6rem; text-align: center; }
+.timeline .btn.subtle { padding: 0.1rem 0.45rem; line-height: 1.2; }
+
 .empty-state {
   position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; color: var(--muted); gap: 0.2rem;

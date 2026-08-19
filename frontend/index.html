@@ -40,6 +40,15 @@
           <option value="both">Selected · both</option>
         </select>
       </label>
+      <label class="mode-picker">
+        Layout
+        <select id="layout-mode">
+          <option value="topdown">Top-down</option>
+          <option value="leftright">Left-right</option>
+          <option value="radial">Radial</option>
+        </select>
+      </label>
+      <button class="btn" id="timeline-btn" title="Highlight who was alive in a given year">⏳ Timeline</button>
       <button class="btn" id="reload-btn">Reload</button>
       <span class="sep"></span>
       <input type="search" id="filter-text" class="filter-input" placeholder="Filter by name…" />
@@ -52,6 +61,12 @@
     <section class="canvas-wrap">
       <svg id="tree-svg"></svg>
       <div class="hint">Scroll to zoom · drag to pan · click a node to select · double-click to collapse</div>
+      <div class="timeline" id="timeline" hidden>
+        <span class="era-caption">Alive in</span>
+        <input type="range" id="era-slider" />
+        <span class="era-label" id="era-label"></span>
+        <button class="btn subtle" id="timeline-off" title="Turn off the timeline">✕</button>
+      </div>
       <div class="empty-state" id="empty-state" hidden>
         <p>No people yet.</p>
         <p>Import a <code>.ged</code> file to get started.</p>
