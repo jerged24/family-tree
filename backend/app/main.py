@@ -10,8 +10,9 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
 
-from backend.app.api.routes import events, families, gedcom, media, persons, tree
+from backend.app.api.routes import admin_auth, events, families, gedcom, media, persons, tree
 from backend.app.config import settings
 from backend.app.database import init_db
 
@@ -40,6 +41,13 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=settings.secret_key,
+        same_site="lax",
+        https_only=False,  # Railway terminates TLS; cookie still flows over its HTTPS domain
+    )
+
     for router in (
         persons.router,
         families.router,
@@ -49,6 +57,8 @@ def create_app() -> FastAPI:
         gedcom.router,
     ):
         app.include_router(router)
+
+    app.include_router(admin_auth.router)
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

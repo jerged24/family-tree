@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from fastapi.testclient import TestClient
+
 
 def test_settings_read_admin_env(monkeypatch):
     monkeypatch.setenv("ADMIN_PASSWORD", "s3cret")
@@ -12,3 +14,23 @@ def test_settings_read_admin_env(monkeypatch):
     assert s.admin_password == "s3cret"
     assert s.media_dir == "/tmp/ft-media"
     assert hasattr(s, "secret_key") and hasattr(s, "public_base_url")
+
+
+def _fresh_client():
+    from backend.app.main import app
+
+    return TestClient(app)
+
+
+def test_login_rejects_bad_password():
+    c = _fresh_client()
+    assert c.post("/admin/login", json={"password": "wrong"}).status_code == 401
+
+
+def test_login_then_protected_route_ok():
+    from backend.app.config import settings
+
+    c = _fresh_client()
+    assert c.post("/admin/login", json={"password": settings.admin_password}).status_code == 200
+    # /persons is protected in Task 3; here we assert login itself round-trips.
+    assert c.post("/admin/logout").status_code == 200
