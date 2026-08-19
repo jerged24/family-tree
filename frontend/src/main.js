@@ -329,6 +329,7 @@ async function renderDetail(id) {
       <button class="btn subtle danger" id="delete-person">Delete</button>
     </div>
     <ul class="events"><li class="muted">Loading events…</li></ul>
+    <div class="godparents" id="godparents"></div>
     <div class="add-relatives">
       <span class="add-label">Add relative:</span>
       <button class="btn subtle" data-rel="parent">+ Parent</button>
@@ -423,9 +424,13 @@ async function renderDetail(id) {
     if (e.key === "Enter") addPhoto();
   });
 
-  // Load events + media in parallel.
+  // Load events + media + associations in parallel.
   try {
-    const [events, media] = await Promise.all([api.personEvents(id), api.personMedia(id)]);
+    const [events, media, associations] = await Promise.all([
+      api.personEvents(id),
+      api.personMedia(id),
+      api.personAssociations(id),
+    ]);
     const ul = els.detail.querySelector(".events");
     ul.innerHTML = events.length
       ? events
@@ -462,9 +467,59 @@ async function renderDetail(id) {
       avatar.textContent = (displayName(p)[0] || "?").toUpperCase();
     }
     renderGallery(id, media);
+    renderGodparents(id, associations);
   } catch {
     /* leave the loading text */
   }
+}
+
+// Godparent links touching this person, plus a picker to add a new godparent.
+function renderGodparents(id, assocs) {
+  const box = els.detail.querySelector("#godparents");
+  if (!box) return;
+  const rows = assocs
+    .map((a) => {
+      const otherId = a.from_person_id === id ? a.to_person_id : a.from_person_id;
+      const role = a.to_person_id === id ? "godparent" : "godchild";
+      return `<li><span>${personName(otherId)} <span class="gp-label">(${role})</span></span>
+        <button class="gp-remove" data-gp="${a.id}" title="Remove">×</button></li>`;
+    })
+    .join("");
+  const existing = new Set(assocs.filter((a) => a.to_person_id === id).map((a) => a.from_person_id));
+  const options = ['<option value="">+ Add a godparent…</option>'];
+  for (const [pid, person] of state.people) {
+    const n = Number(pid);
+    if (n === id || existing.has(n)) continue;
+    options.push(`<option value="${pid}">${displayName(person)}</option>`);
+  }
+  box.innerHTML = `
+    <div class="gp-label">Godparents / godchildren</div>
+    <ul>${rows || '<li class="muted">None yet.</li>'}</ul>
+    <div class="gp-add"><select id="gp-select">${options.join("")}</select></div>`;
+
+  box.querySelectorAll("button[data-gp]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        await api.deleteAssociation(Number(b.dataset.gp));
+        await loadTree();
+        renderDetail(id);
+      } catch (err) {
+        setStatus(err.message, true);
+      }
+    })
+  );
+  box.querySelector("#gp-select").addEventListener("change", async (e) => {
+    const godparentId = Number(e.target.value);
+    if (!godparentId) return;
+    try {
+      // from = the chosen godparent, to = this person (the godchild)
+      await api.addAssociation(godparentId, { to_person_id: id, type: "GODPARENT" });
+      await loadTree();
+      renderDetail(id);
+    } catch (err) {
+      setStatus(err.message, true);
+    }
+  });
 }
 
 // Thumbnails of every photo on a person: click ★ to make it the main avatar, × to remove.

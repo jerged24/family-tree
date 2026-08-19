@@ -47,6 +47,15 @@ export const api = {
   personMemberships(id) {
     return request(`/persons/${id}/memberships`);
   },
+  personAssociations(id) {
+    return request(`/persons/${id}/associations`);
+  },
+  addAssociation(id, payload) {
+    return postJSON(`/persons/${id}/associations`, payload);
+  },
+  deleteAssociation(assocId) {
+    return request(`/associations/${assocId}`, { method: "DELETE" });
+  },
   createPerson(payload) {
     return postJSON("/persons", payload);
   },

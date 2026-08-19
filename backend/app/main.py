@@ -15,7 +15,16 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.app.api.deps import require_admin
-from backend.app.api.routes import admin_auth, events, families, gedcom, media, persons, tree
+from backend.app.api.routes import (
+    admin_auth,
+    associations,
+    events,
+    families,
+    gedcom,
+    media,
+    persons,
+    tree,
+)
 from backend.app.config import settings
 from backend.app.database import init_db
 from backend.app.storage import media_dir
@@ -68,6 +77,7 @@ def create_app() -> FastAPI:
         families.router,
         events.router,
         media.router,
+        associations.router,
         tree.router,
         gedcom.router,
     ]

@@ -32,9 +32,18 @@ class DagEdge(BaseModel):
     pedigree: str | None = None  # BIRTH / ADOPTED / ...
 
 
+class AssociationEdge(BaseModel):
+    """A non-lineage link (e.g. godparent) between two people, rendered as an overlay."""
+
+    source: str  # from person id (e.g. the godparent)
+    target: str  # to person id (e.g. the godchild)
+    type: str
+
+
 class TreeGraph(BaseModel):
     nodes: list[DagNode]
     edges: list[DagEdge]
+    associations: list[AssociationEdge] = []
 
 
 class RelationshipAnalysis(BaseModel):
