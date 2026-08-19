@@ -233,8 +233,8 @@ export class TreeView {
   }
 
   _dateLabel(info) {
-    const b = info.birth ? `b. ${info.birth}` : "";
-    const d = info.death ? `d. ${info.death}` : "";
+    const b = info.birth ? `B. ${info.birth}` : "";
+    const d = info.death ? `D. ${info.death}` : "";
     return [b, d].filter(Boolean).join("  ·  ");
   }
 

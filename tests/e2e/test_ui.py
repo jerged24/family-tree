@@ -200,3 +200,30 @@ def test_add_edit_delete_person(page: Page, live):
     page.once("dialog", lambda d: d.accept())
     page.click("#delete-person")
     page.wait_for_function(f"!{_has_node('Ada Byron')}")
+
+
+def test_name_capitalization_and_adopted_child(page: Page, live):
+    """Names auto-capitalize; adding an adopted child yields a dashed edge."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    # Lowercase input is capitalized.
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "john")
+    page.fill("#pf-surname", "doe")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("John Doe"))
+
+    # Add an ADOPTED child → the relationship-type dropdown shows, and the edge is dashed.
+    _select(page, "John Doe")
+    page.wait_for_selector("#detail button[data-rel='child']")
+    page.locator("#detail button[data-rel='child']").click()
+    page.wait_for_selector("#pf-pedigree-wrap:not([hidden])")
+    page.fill("#pf-given", "junior")
+    page.fill("#pf-surname", "doe")
+    page.select_option("#pf-pedigree", "ADOPTED")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Junior Doe"))
+    expect(page.locator("#tree-svg path.link.adopted")).to_have_count(1)

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.database import get_db
 from backend.app.models import Media, Person
-from backend.app.schemas import MediaCreate, MediaRead
+from backend.app.schemas import MediaCreate, MediaRead, MediaUpdate
 from backend.app.storage import ALLOWED_IMAGE_TYPES, save_upload
 
 router = APIRouter(tags=["media"])
@@ -77,6 +77,23 @@ def list_media(person_id: int, db: Session = Depends(get_db)) -> list[Media]:
     if db.get(Person, person_id) is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Person {person_id} not found")
     return list(db.scalars(select(Media).where(Media.person_id == person_id).order_by(Media.id)))
+
+
+@router.patch("/media/{media_id}", response_model=MediaRead)
+def update_media(media_id: int, payload: MediaUpdate, db: Session = Depends(get_db)) -> Media:
+    item = db.get(Media, media_id)
+    if item is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Media {media_id} not found")
+    data = payload.model_dump(exclude_unset=True)
+    if data.get("is_primary"):
+        # Only one primary photo per person.
+        for other in db.scalars(select(Media).where(Media.person_id == item.person_id)):
+            other.is_primary = False
+    for field, value in data.items():
+        setattr(item, field, value)
+    db.commit()
+    db.refresh(item)
+    return item
 
 
 @router.delete("/media/{media_id}", status_code=status.HTTP_204_NO_CONTENT)
