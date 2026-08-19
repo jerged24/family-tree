@@ -6,6 +6,7 @@ pydantic>=2.7,<3.0
 pydantic-settings>=2.3
 networkx>=3.3
 python-multipart>=0.0.9        # file uploads for GEDCOM import
+itsdangerous>=2.2          # required by Starlette SessionMiddleware
 
 # --- optional GEDCOM helper (cross-check xrefs; hand-rolled parser is primary) ---
 ged4py>=0.5.2
