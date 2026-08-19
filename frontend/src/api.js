@@ -65,6 +65,12 @@ export const api = {
   deletePerson(id) {
     return request(`/persons/${id}`, { method: "DELETE" });
   },
+  duplicates() {
+    return request("/persons/duplicates");
+  },
+  mergePersons(keepId, mergeId) {
+    return postJSON(`/persons/${keepId}/merge/${mergeId}`, {});
+  },
   createEvent(payload) {
     return postJSON("/events", payload);
   },

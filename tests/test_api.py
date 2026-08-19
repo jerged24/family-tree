@@ -49,6 +49,44 @@ def test_associations_godparent(client):
     assert client.get(f"/persons/{a}/associations").json() == []
 
 
+def test_find_and_merge_duplicates(client):
+    # Two "John Smith"s: one with a birth year, one without → flagged as a pair.
+    keep = client.post("/persons", json={"given_name": "John", "surname": "Smith"}).json()["id"]
+    dup = client.post(
+        "/persons", json={"given_name": "John", "surname": "Smith", "sex": "M"}
+    ).json()["id"]
+    client.post("/events", json={"type": "BIRT", "person_id": dup, "date_value": "1900"})
+    # An unrelated person must not be flagged.
+    client.post("/persons", json={"given_name": "Mary", "surname": "Jones"})
+
+    pairs = client.get("/persons/duplicates").json()
+    assert len(pairs) == 1
+    ids = {pairs[0]["a"]["id"], pairs[0]["b"]["id"]}
+    assert ids == {keep, dup}
+    assert "missing a birth year" in pairs[0]["reason"]
+
+    # Give the duplicate a family membership and a photo, then merge it into keep.
+    fam = client.post("/families", json={}).json()["id"]
+    client.post(
+        f"/families/{fam}/members", json={"person_id": dup, "family_id": fam, "role": "CHILD"}
+    )
+    client.post(f"/persons/{dup}/media", json={"url": "https://x/j.png", "is_primary": True})
+
+    merged = client.post(f"/persons/{keep}/merge/{dup}")
+    assert merged.status_code == 200
+    assert merged.json()["sex"] == "M"  # blank field on keep filled from the merged twin
+
+    assert client.get(f"/persons/{dup}").status_code == 404  # loser is gone
+    assert client.get(f"/persons/{keep}/media").json()[0]["url"] == "https://x/j.png"  # photo moved
+    assert (
+        client.get(f"/persons/{keep}/memberships").json()[0]["family_id"] == fam
+    )  # membership moved
+    assert client.get(f"/persons/{keep}/events").json()[0]["date_value"] == "1900"  # event moved
+    assert client.get("/persons/duplicates").json() == []  # nothing left to merge
+
+    assert client.post(f"/persons/{keep}/merge/{keep}").status_code == 400  # self-merge rejected
+
+
 def test_person_memberships(client):
     parent = client.post("/persons", json={"given_name": "Pat"}).json()["id"]
     child = client.post("/persons", json={"given_name": "Kim"}).json()["id"]
