@@ -76,12 +76,13 @@ const personModal = document.getElementById("person-modal");
 const personForm = document.getElementById("person-form");
 let modalResolve = null;
 
-function openPersonForm(title) {
+function openPersonForm(title, prefill = {}) {
   document.getElementById("person-modal-title").textContent = title;
-  ["pf-given", "pf-surname", "pf-dob", "pf-dod"].forEach((id) => {
-    document.getElementById(id).value = "";
-  });
-  document.getElementById("pf-sex").value = "U";
+  document.getElementById("pf-given").value = prefill.given || "";
+  document.getElementById("pf-surname").value = prefill.surname || "";
+  document.getElementById("pf-sex").value = prefill.sex || "U";
+  document.getElementById("pf-dob").value = prefill.dob || "";
+  document.getElementById("pf-dod").value = prefill.dod || "";
   personModal.hidden = false;
   document.getElementById("pf-given").focus();
   return new Promise((resolve) => (modalResolve = resolve));
@@ -145,6 +146,72 @@ async function addRelative(kind, anchorId, form) {
   }
 }
 
+// Bring a person's DOB/DOD event into line with an edited value: update, create, or delete.
+async function reconcileDateEvent(personId, type, existing, newValue) {
+  const value = (newValue || "").trim();
+  if (value && existing && existing.date_value !== value) {
+    await api.updateEvent(existing.id, { date_value: value });
+  } else if (value && !existing) {
+    await api.createEvent({ type, person_id: personId, date_value: value });
+  } else if (!value && existing) {
+    await api.deleteEvent(existing.id);
+  }
+}
+
+async function editPerson(id) {
+  const p = state.people.get(String(id));
+  if (!p) return;
+  const events = await api.personEvents(id);
+  const birth = events.find((e) => e.type === "BIRT");
+  const death = events.find((e) => e.type === "DEAT");
+  const form = await openPersonForm("Edit person", {
+    given: p.given_name || "",
+    surname: p.surname || "",
+    sex: p.sex || "U",
+    dob: birth?.date_value || "",
+    dod: death?.date_value || "",
+  });
+  if (!form) return;
+  setStatus("Saving…");
+  try {
+    await api.updatePerson(id, {
+      given_name: form.given || null,
+      surname: form.surname || null,
+      sex: form.sex || "U",
+    });
+    await reconcileDateEvent(id, "BIRT", birth, form.dob);
+    await reconcileDateEvent(id, "DEAT", death, form.dod);
+    await loadTree();
+    renderDetail(id);
+    setStatus("Saved");
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
+async function removePerson(id) {
+  const p = state.people.get(String(id));
+  if (!p) return;
+  if (!window.confirm(`Delete ${displayName(p)} and their family links? This cannot be undone.`)) {
+    return;
+  }
+  setStatus("Deleting…");
+  try {
+    await api.deletePerson(id);
+    if (state.selectedId === id) state.selectedId = null;
+    state.compare = state.compare.map((c) => (c === String(id) ? null : c));
+    renderSlots();
+    view.setComparison(state.compare);
+    maybeAnalyse();
+    els.detail.className = "detail muted";
+    els.detail.textContent = "Select a person on the tree.";
+    await loadTree();
+    setStatus(`Deleted ${displayName(p)}`);
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
 async function loadPeople() {
   const list = await api.persons();
   state.people = new Map(list.map((p) => [String(p.id), p]));
@@ -194,6 +261,10 @@ async function renderDetail(id) {
         <div class="meta">${sexLabel(p.sex)}${p.xref_id ? " · " + p.xref_id : ""}</div>
       </div>
     </div>
+    <div class="entity-actions">
+      <button class="btn subtle" id="edit-person">Edit</button>
+      <button class="btn subtle danger" id="delete-person">Delete</button>
+    </div>
     <ul class="events"><li class="muted">Loading events…</li></ul>
     <div class="add-relatives">
       <span class="add-label">Add relative:</span>
@@ -210,6 +281,10 @@ async function renderDetail(id) {
       <button class="btn subtle" data-slot="0">Set as A</button>
       <button class="btn subtle" data-slot="1">Set as B</button>
     </div>`;
+
+  // Edit / delete this person.
+  els.detail.querySelector("#edit-person").addEventListener("click", () => editPerson(id));
+  els.detail.querySelector("#delete-person").addEventListener("click", () => removePerson(id));
 
   // Add-relative handlers.
   els.detail.querySelectorAll("button[data-rel]").forEach((b) =>

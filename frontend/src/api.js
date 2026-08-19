@@ -23,13 +23,15 @@ async function request(path, options = {}) {
   return res.status === 204 ? null : res.json();
 }
 
-function postJSON(path, payload) {
+function bodyJSON(method, path, payload) {
   return request(path, {
-    method: "POST",
+    method,
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
 }
+const postJSON = (path, payload) => bodyJSON("POST", path, payload);
+const patchJSON = (path, payload) => bodyJSON("PATCH", path, payload);
 
 export const api = {
   tree(rootId = null, mode = "full") {
@@ -48,8 +50,20 @@ export const api = {
   createPerson(payload) {
     return postJSON("/persons", payload);
   },
+  updatePerson(id, payload) {
+    return patchJSON(`/persons/${id}`, payload);
+  },
+  deletePerson(id) {
+    return request(`/persons/${id}`, { method: "DELETE" });
+  },
   createEvent(payload) {
     return postJSON("/events", payload);
+  },
+  updateEvent(id, payload) {
+    return patchJSON(`/events/${id}`, payload);
+  },
+  deleteEvent(id) {
+    return request(`/events/${id}`, { method: "DELETE" });
   },
   createFamily() {
     return postJSON("/families", {});

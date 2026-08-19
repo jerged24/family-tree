@@ -130,6 +130,10 @@ export class TreeView {
       const sexClass = info.sex === "M" ? "male" : info.sex === "F" ? "female" : "other";
       return `node ${sexClass}`;
     });
+    // refresh name + dates text (so edits to an existing person show without a full redraw)
+    nodeSel.select("text.name").text((n) => this._info(n).name || "(unknown)");
+    nodeSel.select("text.dates").text((n) => this._dateLabel(this._info(n)));
+
     // update avatar photo / initial (handles nodes gaining a photo after a reload)
     nodeSel
       .select("image.avatar-img")

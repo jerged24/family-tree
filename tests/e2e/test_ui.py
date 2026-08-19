@@ -159,3 +159,44 @@ def test_add_photo_shows_avatar_on_node(page: Page, live):
             const img = g && g.querySelector('image.avatar-img');
             return img && img.getAttribute('href') && img.style.display !== 'none';
         }""")
+
+
+def _has_node(name: str) -> str:
+    return (
+        "[...document.querySelectorAll('#tree-svg g.node text.name')]"
+        f".some(t => t.textContent === {name!r})"
+    )
+
+
+def test_add_edit_delete_person(page: Page, live):
+    """Owner data entry: add a person, rename via Edit (node label must update
+    in-session), then Delete."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    # Add a person via the toolbar modal.
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Ada")
+    page.fill("#pf-surname", "Lovelace")
+    page.fill("#pf-dob", "10 DEC 1815")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Ada Lovelace"))
+
+    # Edit: the form pre-fills, rename the surname; the node label must refresh.
+    _select(page, "Ada Lovelace")
+    page.wait_for_selector("#edit-person")
+    page.click("#edit-person")
+    page.wait_for_selector("#pf-given", state="visible")
+    assert page.input_value("#pf-surname") == "Lovelace"  # pre-filled
+    page.fill("#pf-surname", "Byron")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Ada Byron"))
+
+    # Delete (accept the confirm dialog); the node disappears.
+    _select(page, "Ada Byron")
+    page.wait_for_selector("#delete-person")
+    page.once("dialog", lambda d: d.accept())
+    page.click("#delete-person")
+    page.wait_for_function(f"!{_has_node('Ada Byron')}")
