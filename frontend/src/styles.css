@@ -245,3 +245,6 @@ body { display: flex; flex-direction: column; }
   border: 1px solid var(--border); border-radius: 6px; background: var(--panel); color: var(--ink); }
 .filter-select { font: inherit; font-size: 0.82rem; padding: 0.3rem 0.4rem; border-radius: 6px;
   border: 1px solid var(--border); background: var(--panel); color: var(--ink); }
+
+/* ---- Privacy toggle ---- */
+.privacy-toggle { font-size: 0.8rem; color: var(--muted); display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; white-space: nowrap; }

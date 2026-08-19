@@ -7,6 +7,23 @@ import * as d3dag from "../vendor/d3-dag.js";
 const NODE_W = 168;
 const NODE_H = 52;
 
+// Snap a focal point (percent) to the nearest 9-position SVG alignment so a
+// cropped avatar keeps the face in frame.
+function focalToAspect(fx = 50, fy = 50) {
+  const px = fx < 34 ? "xMin" : fx > 66 ? "xMax" : "xMid";
+  const py = fy < 34 ? "YMin" : fy > 66 ? "YMax" : "YMid";
+  return `${px}${py} slice`;
+}
+
+// Possibly-living = no death, and birth unknown or within the last century.
+const CURRENT_YEAR = new Date().getFullYear();
+function isLiving(info) {
+  if (info.death) return false;
+  const m = (info.birth || "").match(/\b(\d{4})\b/);
+  const year = m ? Number(m[1]) : null;
+  return year === null || year > CURRENT_YEAR - 100;
+}
+
 export class TreeView {
   constructor(svgEl, { onSelect, onToggle } = {}) {
     this.svg = d3.select(svgEl);
@@ -35,11 +52,21 @@ export class TreeView {
     this.pathNodeSet = new Set();
     this.pathEdgeSet = new Set();
     this.filterIds = null; // Set of matching ids, or null for "no filter"
+    this.privacy = false; // when true, mask living people's name/dates/photo
   }
 
   setFilter(ids) {
     this.filterIds = ids;
     this._applyFilter();
+  }
+
+  setPrivacy(on) {
+    this.privacy = on;
+    this.render(false);
+  }
+
+  _masked(node) {
+    return this.privacy && isLiving(this._info(node));
   }
 
   _applyFilter() {
@@ -149,19 +176,23 @@ export class TreeView {
       const sexClass = info.sex === "M" ? "male" : info.sex === "F" ? "female" : "other";
       return `node ${sexClass}`;
     });
-    // refresh name + dates text (so edits to an existing person show without a full redraw)
-    nodeSel.select("text.name").text((n) => this._info(n).name || "(unknown)");
-    nodeSel.select("text.dates").text((n) => this._dateLabel(this._info(n)));
+    // refresh name + dates text (privacy masks living people; also lets edits show live)
+    nodeSel.select("text.name").text((n) => (this._masked(n) ? "Living" : this._info(n).name || "(unknown)"));
+    nodeSel.select("text.dates").text((n) => (this._masked(n) ? "" : this._dateLabel(this._info(n))));
 
-    // update avatar photo / initial (handles nodes gaining a photo after a reload)
+    // update avatar photo / initial (a masked living person shows no photo)
+    const showPhoto = (n) => Boolean(this._info(n).photo_url) && !this._masked(n);
     nodeSel
       .select("image.avatar-img")
       .attr("href", (n) => this._info(n).photo_url || null)
-      .style("display", (n) => (this._info(n).photo_url ? null : "none"));
+      .attr("preserveAspectRatio", (n) =>
+        focalToAspect(this._info(n).photo_focal_x, this._info(n).photo_focal_y)
+      )
+      .style("display", (n) => (showPhoto(n) ? null : "none"));
     nodeSel
       .select("text.avatar-initial")
-      .text((n) => (this._info(n).name || "?").trim().charAt(0).toUpperCase())
-      .style("display", (n) => (this._info(n).photo_url ? "none" : null));
+      .text((n) => (this._masked(n) ? "•" : (this._info(n).name || "?").trim().charAt(0).toUpperCase()))
+      .style("display", (n) => (showPhoto(n) ? "none" : null));
 
     nodeSel.select(".toggle-sign").text((n) => (this.collapsed.has(n.data.id) ? "+" : "–"));
     nodeSel

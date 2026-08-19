@@ -59,10 +59,11 @@ def load_sample(db: Session = Depends(get_db)) -> ImportSummary:
 @router.get("/export", response_class=PlainTextResponse)
 def export_ged(
     version: str = Query("5.5.1", pattern=r"^(5\.5\.1|7\.0)$"),
+    privacy: str = Query("none", pattern="^(none|living)$"),
     db: Session = Depends(get_db),
 ) -> PlainTextResponse:
-    """Export the whole database as a GEDCOM file."""
-    text = export_gedcom(db, gedcom_version=version)
+    """Export the whole database as a GEDCOM file (``privacy=living`` masks living people)."""
+    text = export_gedcom(db, gedcom_version=version, mask_living=(privacy == "living"))
     return PlainTextResponse(
         content=text,
         media_type="text/vnd.familysearch.gedcom",

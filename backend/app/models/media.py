@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from backend.app.models.base import Base, TimestampMixin
@@ -26,6 +26,10 @@ class Media(Base, TimestampMixin):
     caption: Mapped[str | None] = mapped_column(String(255))
     mime_type: Mapped[str | None] = mapped_column(String(100))
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Focal point (percent, 0–100) so faces stay centered when the photo is cropped
+    # into an avatar circle. Defaults to the image center.
+    focal_x: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
+    focal_y: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
 
     person: Mapped[Person] = relationship(back_populates="media")
 

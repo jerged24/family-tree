@@ -150,6 +150,20 @@ def test_export_version_param(client, sample_ged):
     assert "2 VERS 7.0" in body
 
 
+def test_export_privacy_masks_living(client):
+    client.post("/persons", json={"given_name": "Alive", "surname": "Now"})
+    dead = client.post("/persons", json={"given_name": "Gone", "surname": "Past"}).json()["id"]
+    client.post("/events", json={"type": "DEAT", "person_id": dead, "date_value": "1950"})
+
+    masked = client.get("/gedcom/export", params={"privacy": "living"}).text
+    assert "Living /Living/" in masked
+    assert "Alive" not in masked  # living person's name hidden
+    assert "Gone" in masked  # deceased person still shown
+
+    plain = client.get("/gedcom/export").text
+    assert "Alive" in plain  # no masking by default
+
+
 # --------------------------------------------------------------- sample seed + merge
 def test_load_sample_endpoint_is_idempotent(client):
     first = client.post("/gedcom/sample").json()
@@ -202,6 +216,22 @@ def test_only_one_primary_photo(client):
     media = client.get(f"/persons/{pid}/media").json()
     assert sum(1 for m in media if m["is_primary"]) == 1
     assert next(m for m in media if m["is_primary"])["url"] == "https://x/2.png"
+
+
+def test_set_media_focal_point(client):
+    pid = client.post("/persons", json={"given_name": "Fo"}).json()["id"]
+    mid = client.post(
+        f"/persons/{pid}/media", json={"url": "https://x/f.png", "is_primary": True}
+    ).json()["id"]
+
+    r = client.patch(f"/media/{mid}", json={"focal_x": 30, "focal_y": 70})
+    assert r.status_code == 200
+    assert r.json()["focal_x"] == 30 and r.json()["focal_y"] == 70
+
+    node = next(n for n in client.get("/tree").json()["nodes"] if n["id"] == str(pid))
+    assert node["photo_focal_x"] == 30 and node["photo_focal_y"] == 70
+
+    assert client.patch(f"/media/{mid}", json={"focal_x": 150}).status_code == 422  # out of range
 
 
 def test_set_media_primary_via_patch(client):
