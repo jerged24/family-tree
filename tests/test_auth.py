@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from fastapi.testclient import TestClient
-
 
 def test_settings_read_admin_env(monkeypatch):
     monkeypatch.setenv("ADMIN_PASSWORD", "s3cret")
@@ -17,14 +15,12 @@ def test_settings_read_admin_env(monkeypatch):
 
 
 def _fresh_client():
-    from backend.app.database import init_db
     from backend.app.main import app
+    from tests.conftest import isolated_client
 
-    # TestClient(app) without a `with` block never runs the app's lifespan (see
-    # tests/conftest.py's client fixture docstring), so the real on-disk sqlite
-    # file backing get_db here has no schema unless we create it ourselves.
-    init_db()
-    return TestClient(app)
+    # Isolated in-memory DB (same helper the `client` fixture uses) — never touches
+    # the real on-disk sqlite file, and never leaves a stray familytree.db behind.
+    return isolated_client(app)
 
 
 def test_login_rejects_bad_password():
