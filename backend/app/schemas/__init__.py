@@ -1,5 +1,6 @@
 """Pydantic v2 request/response schemas."""
 
+from backend.app.schemas.association import AssociationCreate, AssociationRead
 from backend.app.schemas.event import EventCreate, EventRead, EventUpdate
 from backend.app.schemas.family import FamilyCreate, FamilyRead, FamilyUpdate
 from backend.app.schemas.media import MediaCreate, MediaRead, MediaUpdate
@@ -32,6 +33,8 @@ __all__ = [
     "MediaCreate",
     "MediaRead",
     "MediaUpdate",
+    "AssociationCreate",
+    "AssociationRead",
     "DagNode",
     "DagEdge",
     "TreeGraph",

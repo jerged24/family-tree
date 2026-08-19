@@ -29,6 +29,26 @@ def test_person_crud_lifecycle(client):
     assert client.get(f"/persons/{pid}").status_code == 404
 
 
+def test_associations_godparent(client):
+    a = client.post("/persons", json={"given_name": "Ana"}).json()["id"]
+    b = client.post("/persons", json={"given_name": "Ben"}).json()["id"]
+
+    r = client.post(f"/persons/{a}/associations", json={"to_person_id": b, "type": "GODPARENT"})
+    assert r.status_code == 201
+    aid = r.json()["id"]
+    assert r.json()["from_person_id"] == a and r.json()["to_person_id"] == b
+
+    # Both people list the link; and it surfaces on the tree JSON.
+    assert len(client.get(f"/persons/{a}/associations").json()) == 1
+    assert len(client.get(f"/persons/{b}/associations").json()) == 1
+    tree = client.get("/tree").json()
+    assert {"source": str(a), "target": str(b), "type": "GODPARENT"} in tree["associations"]
+
+    assert client.post(f"/persons/{a}/associations", json={"to_person_id": a}).status_code == 400
+    assert client.delete(f"/associations/{aid}").status_code == 204
+    assert client.get(f"/persons/{a}/associations").json() == []
+
+
 def test_person_memberships(client):
     parent = client.post("/persons", json={"given_name": "Pat"}).json()["id"]
     child = client.post("/persons", json={"given_name": "Kim"}).json()["id"]

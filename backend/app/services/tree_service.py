@@ -5,9 +5,9 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Event, EventType, Media
+from backend.app.models import Association, Event, EventType, Media
 from backend.app.models.base import Pedigree, Sex
-from backend.app.schemas.tree import DagEdge, DagNode, TreeGraph
+from backend.app.schemas.tree import AssociationEdge, DagEdge, DagNode, TreeGraph
 from backend.app.services.graph_service import GraphService
 
 
@@ -93,4 +93,22 @@ def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full"
         pedigree = data.get("pedigree", Pedigree.BIRTH)
         edges.append(DagEdge(source=str(u), target=str(v), pedigree=pedigree.value))
 
-    return TreeGraph(nodes=nodes, edges=edges)
+    associations = _associations(db, node_ids)
+
+    return TreeGraph(nodes=nodes, edges=edges, associations=associations)
+
+
+def _associations(db: Session, person_ids: set[int]) -> list[AssociationEdge]:
+    """Associations (e.g. godparent links) where both endpoints are visible."""
+    if not person_ids:
+        return []
+    rows = db.scalars(
+        select(Association).where(
+            Association.from_person_id.in_(person_ids),
+            Association.to_person_id.in_(person_ids),
+        )
+    ).all()
+    return [
+        AssociationEdge(source=str(a.from_person_id), target=str(a.to_person_id), type=a.type.value)
+        for a in rows
+    ]

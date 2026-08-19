@@ -83,6 +83,13 @@ class Pedigree(enum.StrEnum):
     GUARDIAN = "GUARDIAN"
 
 
+class AssociationType(enum.StrEnum):
+    """A directional person→person link outside the family DAG."""
+
+    GODPARENT = "GODPARENT"  # from = godparent, to = godchild
+    OTHER = "OTHER"
+
+
 class EventType(enum.StrEnum):
     """Common GEDCOM 5.5.1 event tags. Individual- or family-scoped."""
 

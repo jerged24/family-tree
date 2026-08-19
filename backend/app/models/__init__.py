@@ -1,6 +1,8 @@
 """ORM models. Importing this package registers every mapper on ``Base.metadata``."""
 
+from backend.app.models.association import Association
 from backend.app.models.base import (
+    AssociationType,
     Base,
     EventType,
     PartnerType,
@@ -29,4 +31,6 @@ __all__ = [
     "Source",
     "Citation",
     "Media",
+    "Association",
+    "AssociationType",
 ]

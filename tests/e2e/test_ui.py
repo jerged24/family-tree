@@ -265,3 +265,18 @@ def test_privacy_hides_living_people(page: Page, live):
 
     page.uncheck("#privacy-toggle")
     page.wait_for_function(_has_node("Carol Smith"))
+
+
+def test_godparent_link(page: Page, live):
+    """Adding a godparent creates an overlay link and lists it in the detail panel."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    _select(page, "Carol Smith")
+    page.wait_for_selector("#gp-select")
+    page.select_option("#gp-select", label="John Smith")  # John becomes Carol's godparent
+
+    page.wait_for_function("document.querySelectorAll('#tree-svg path.assoc').length === 1")
+    expect(page.locator("#godparents")).to_contain_text("John Smith")

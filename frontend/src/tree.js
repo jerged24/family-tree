@@ -37,6 +37,7 @@ export class TreeView {
 
     this.viewport = this.svg.append("g").attr("class", "viewport");
     this.linkLayer = this.viewport.append("g").attr("class", "links");
+    this.assocLayer = this.viewport.append("g").attr("class", "assocs");
     this.nodeLayer = this.viewport.append("g").attr("class", "nodes");
 
     this.zoom = d3
@@ -161,6 +162,22 @@ export class TreeView {
         return ped === "BIRTH" ? "link" : `link non-birth ped-${ped.toLowerCase()}`;
       })
       .attr("d", (l) => lineGen(l.points));
+
+    // ---- association overlay (godparents etc.) — straight dotted lines between node centers ----
+    const posById = new Map(nodes.map((n) => [n.data.id, n]));
+    const assocData = (this.raw.associations || []).filter(
+      (a) => posById.has(a.source) && posById.has(a.target)
+    );
+    this.assocLayer
+      .selectAll("path.assoc")
+      .data(assocData, (a) => `${a.source}~${a.target}~${a.type}`)
+      .join("path")
+      .attr("class", (a) => `assoc assoc-${a.type.toLowerCase()}`)
+      .attr("d", (a) => {
+        const s = posById.get(a.source);
+        const t = posById.get(a.target);
+        return `M${s.x},${s.y} L${t.x},${t.y}`;
+      });
 
     // ---- nodes ----
     const nodeSel = this.nodeLayer
