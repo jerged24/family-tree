@@ -36,6 +36,8 @@ const els = {
   reloadBtn: document.getElementById("reload-btn"),
   clearCompare: document.getElementById("clear-compare"),
   viewMode: document.getElementById("view-mode"),
+  filterText: document.getElementById("filter-text"),
+  filterDecade: document.getElementById("filter-decade"),
 };
 
 const state = {
@@ -251,6 +253,8 @@ async function loadTree() {
       graph = await api.tree();
     }
     view.setGraph(graph);
+    populateDecades(graph.nodes);
+    applyFilter();
     const empty = graph.nodes.length === 0;
     els.empty.hidden = !empty;
     setStatus(empty ? "No people yet" : `${graph.nodes.length} people · ${graph.edges.length} links`);
@@ -258,6 +262,42 @@ async function loadTree() {
     setStatus(err.message, true);
     console.error(err);
   }
+}
+
+// ---- filter: dim people who don't match the name text and/or birth decade ----
+const yearOf = (birth) => {
+  const m = (birth || "").match(/\b(\d{4})\b/);
+  return m ? Number(m[1]) : null;
+};
+
+function populateDecades(nodes) {
+  const decades = new Set();
+  for (const n of nodes) {
+    const y = yearOf(n.birth);
+    if (y) decades.add(Math.floor(y / 10) * 10);
+  }
+  const current = els.filterDecade.value;
+  const opts = ['<option value="">Any decade</option>'];
+  for (const d of [...decades].sort((a, b) => a - b)) opts.push(`<option value="${d}">${d}s</option>`);
+  els.filterDecade.innerHTML = opts.join("");
+  els.filterDecade.value = decades.has(Number(current)) ? current : "";
+}
+
+function applyFilter() {
+  const text = els.filterText.value.trim().toLowerCase();
+  const decade = els.filterDecade.value ? Number(els.filterDecade.value) : null;
+  if (!text && decade === null) {
+    view.setFilter(null);
+    return;
+  }
+  const match = new Set();
+  for (const n of view.raw.nodes) {
+    const nameOk = !text || n.name.toLowerCase().includes(text);
+    const y = yearOf(n.birth);
+    const decadeOk = decade === null || (y !== null && Math.floor(y / 10) * 10 === decade);
+    if (nameOk && decadeOk) match.add(n.id);
+  }
+  view.setFilter(match);
 }
 
 async function selectPerson(id) {
@@ -551,6 +591,8 @@ els.exportBtn.addEventListener("click", (e) => {
 
 els.reloadBtn.addEventListener("click", loadTree);
 els.viewMode.addEventListener("change", loadTree);
+els.filterText.addEventListener("input", applyFilter);
+els.filterDecade.addEventListener("change", applyFilter);
 els.clearCompare.addEventListener("click", () => {
   state.compare = [null, null];
   renderSlots();

@@ -38,6 +38,9 @@
         </select>
       </label>
       <button class="btn" id="reload-btn">Reload</button>
+      <span class="sep"></span>
+      <input type="search" id="filter-text" class="filter-input" placeholder="Filter by name…" />
+      <select id="filter-decade" class="filter-select"><option value="">Any decade</option></select>
       <span class="status" id="status"></span>
     </div>
   </header>
@@ -75,7 +78,10 @@
           <li><span class="swatch female"></span> Female</li>
           <li><span class="swatch other"></span> Other / unknown</li>
           <li><span class="line-solid"></span> Birth</li>
-          <li><span class="line-dashed"></span> Adopted / non-birth</li>
+          <li><span class="line-dashed ped-adopted"></span> Adopted</li>
+          <li><span class="line-dashed ped-step"></span> Step</li>
+          <li><span class="line-dashed ped-foster"></span> Foster</li>
+          <li><span class="line-dashed ped-guardian"></span> Guardian</li>
         </ul>
       </div>
     </aside>
