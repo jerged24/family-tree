@@ -8,10 +8,11 @@ from __future__ import annotations
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
+from backend.app.api.deps import require_admin
 from backend.app.api.routes import admin_auth, events, families, gedcom, media, persons, tree
 from backend.app.config import settings
 from backend.app.database import init_db
@@ -48,17 +49,17 @@ def create_app() -> FastAPI:
         https_only=False,  # Railway terminates TLS; cookie still flows over its HTTPS domain
     )
 
-    for router in (
+    guarded = [
         persons.router,
         families.router,
         events.router,
         media.router,
         tree.router,
         gedcom.router,
-    ):
-        app.include_router(router)
-
-    app.include_router(admin_auth.router)
+    ]
+    for router in guarded:
+        app.include_router(router, dependencies=[Depends(require_admin)])
+    app.include_router(admin_auth.router)  # unprotected: login lives here
 
     @app.get("/health", tags=["meta"])
     def health() -> dict[str, str]:

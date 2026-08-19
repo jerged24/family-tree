@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from backend.app import models  # noqa: F401  (registers mappers on Base.metadata)
+from backend.app.config import settings
 from backend.app.models.base import Base
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -91,6 +92,8 @@ def client():
 
     app.dependency_overrides[get_db] = _override_get_db
     try:
-        yield TestClient(app)
+        test_client = TestClient(app)
+        test_client.post("/admin/login", json={"password": settings.admin_password})
+        yield test_client
     finally:
         app.dependency_overrides.clear()
