@@ -102,6 +102,7 @@ function openPersonForm(title, prefill = {}, opts = {}) {
   document.getElementById("pf-surname").value = prefill.surname || "";
   document.getElementById("pf-sex").value = prefill.sex || "U";
   document.getElementById("pf-dob").value = prefill.dob || "";
+  document.getElementById("pf-birthplace").value = prefill.birthplace || "";
   document.getElementById("pf-dod").value = prefill.dod || "";
   document.getElementById("pf-notes").value = prefill.notes || "";
   document.getElementById("pf-pedigree").value = "BIRTH";
@@ -123,6 +124,7 @@ personForm.addEventListener("submit", (e) => {
     surname: titleCase(document.getElementById("pf-surname").value.trim()),
     sex: document.getElementById("pf-sex").value,
     dob: document.getElementById("pf-dob").value.trim(),
+    birthplace: document.getElementById("pf-birthplace").value.trim(),
     dod: document.getElementById("pf-dod").value.trim(),
     notes: document.getElementById("pf-notes").value.trim(),
     pedigree: document.getElementById("pf-pedigree").value,
@@ -148,7 +150,14 @@ async function createPersonFromForm(form) {
     sex: form.sex || "U",
     notes: form.notes || null,
   });
-  if (form.dob) await api.createEvent({ type: "BIRT", person_id: person.id, date_value: form.dob });
+  if (form.dob || form.birthplace) {
+    await api.createEvent({
+      type: "BIRT",
+      person_id: person.id,
+      date_value: form.dob || null,
+      place: form.birthplace || null,
+    });
+  }
   if (form.dod) await api.createEvent({ type: "DEAT", person_id: person.id, date_value: form.dod });
   return person.id;
 }
@@ -198,6 +207,20 @@ async function reconcileDateEvent(personId, type, existing, newValue) {
   }
 }
 
+// The birth event carries both a date and a place, so reconcile the two together:
+// it exists whenever either is set, and is removed only when both are cleared.
+async function reconcileBirthEvent(personId, existing, dob, place) {
+  const d = (dob || "").trim();
+  const pl = (place || "").trim();
+  if (!d && !pl) {
+    if (existing) await api.deleteEvent(existing.id);
+  } else if (!existing) {
+    await api.createEvent({ type: "BIRT", person_id: personId, date_value: d || null, place: pl || null });
+  } else if (existing.date_value !== (d || null) || (existing.place || "") !== pl) {
+    await api.updateEvent(existing.id, { date_value: d || null, place: pl || null });
+  }
+}
+
 async function editPerson(id) {
   const p = state.people.get(String(id));
   if (!p) return;
@@ -209,6 +232,7 @@ async function editPerson(id) {
     surname: p.surname || "",
     sex: p.sex || "U",
     dob: birth?.date_value || "",
+    birthplace: birth?.place || "",
     dod: death?.date_value || "",
     notes: p.notes || "",
   });
@@ -221,7 +245,7 @@ async function editPerson(id) {
       sex: form.sex || "U",
       notes: form.notes || null,
     });
-    await reconcileDateEvent(id, "BIRT", birth, form.dob);
+    await reconcileBirthEvent(id, birth, form.dob, form.birthplace);
     await reconcileDateEvent(id, "DEAT", death, form.dod);
     await loadTree();
     renderDetail(id);
