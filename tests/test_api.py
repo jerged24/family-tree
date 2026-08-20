@@ -13,6 +13,13 @@ def test_health(client):
     assert client.get("/health").json() == {"status": "ok"}
 
 
+def test_spa_is_served_with_no_cache(client):
+    """The SPA shell must revalidate each load so deploys aren't hidden by the cache."""
+    r = client.get("/index.html")
+    assert r.status_code == 200
+    assert r.headers.get("cache-control") == "no-cache"
+
+
 # --------------------------------------------------------------------------- persons CRUD
 def test_person_crud_lifecycle(client):
     created = client.post("/persons", json={"given_name": "Ada", "surname": "Lovelace", "sex": "F"})
