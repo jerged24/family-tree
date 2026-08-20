@@ -248,6 +248,32 @@ def test_import_merge_mode_no_duplicate(client, sample_ged):
     assert len(client.get("/persons").json()) == 4
 
 
+# --------------------------------------------------------------- slideshow export
+def test_slideshow_export(client):
+    john = client.post("/persons", json={"given_name": "John", "surname": "Smith"}).json()["id"]
+    kid = client.post("/persons", json={"given_name": "Cara", "surname": "Smith"}).json()["id"]
+    client.post(
+        "/events", json={"type": "BIRT", "person_id": john, "date_value": "1900", "place": "Cebu"}
+    )
+    fam = client.post("/families", json={}).json()["id"]
+    client.post(
+        f"/families/{fam}/members", json={"person_id": john, "family_id": fam, "role": "PARTNER"}
+    )
+    client.post(
+        f"/families/{fam}/members", json={"person_id": kid, "family_id": fam, "role": "CHILD"}
+    )
+
+    r = client.get("/slideshow")
+    assert r.status_code == 200
+    assert r.headers["content-type"].startswith("text/html")
+    assert r.headers.get("content-disposition", "").startswith("attachment")
+    body = r.text
+    assert "<!doctype html>" in body.lower()
+    assert "John Smith" in body and "Cara Smith" in body  # a slide per person
+    assert "Born in Cebu" in body  # birthplace rendered
+    assert "Children" in body  # relationship row derived from the family
+
+
 # --------------------------------------------------------------- spreadsheet (CSV) import
 def _csv_import(client, text: str):
     return client.post(

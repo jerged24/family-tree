@@ -32,6 +32,7 @@ const els = {
   importInput: document.getElementById("import-input"),
   importCsvInput: document.getElementById("import-csv-input"),
   templateBtn: document.getElementById("template-btn"),
+  slideshowBtn: document.getElementById("slideshow-btn"),
   addPersonBtn: document.getElementById("add-person-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   exportBtn: document.getElementById("export-btn"),
@@ -794,6 +795,16 @@ function downloadBlankTemplate() {
 }
 
 els.templateBtn.addEventListener("click", downloadBlankTemplate);
+
+els.slideshowBtn.addEventListener("click", () => {
+  // Same-origin GET returns the HTML file as an attachment (cookies sent automatically).
+  const a = document.createElement("a");
+  a.href = api.slideshowUrl();
+  a.download = "family-slideshow.html";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+});
 
 els.importCsvInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
