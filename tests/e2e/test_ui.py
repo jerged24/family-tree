@@ -270,6 +270,31 @@ def test_person_notes_show_and_edit(page: Page, live):
     expect(page.locator("#person-notes")).to_have_text("Retired teacher")
 
 
+def test_birthplace_on_add_and_edit(page: Page, live):
+    """Birth place entered on the form is saved on the birth event and editable."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Bea")
+    page.fill("#pf-surname", "Place")
+    page.fill("#pf-birthplace", "Cebu")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Bea Place"))
+
+    _select(page, "Bea Place")
+    expect(page.locator("#detail .events")).to_contain_text("Cebu")  # shown on the birth event
+
+    page.click("#edit-person")
+    page.wait_for_selector("#pf-given", state="visible")
+    assert page.input_value("#pf-birthplace") == "Cebu"  # pre-filled
+    page.fill("#pf-birthplace", "Bohol")
+    page.locator("#person-form button[type=submit]").click()
+    expect(page.locator("#detail .events")).to_contain_text("Bohol")
+
+
 def test_name_capitalization_and_adopted_child(page: Page, live):
     """Names auto-capitalize; adding an adopted child yields a dashed edge."""
     page.goto(live.url())
