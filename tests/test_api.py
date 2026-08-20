@@ -241,6 +241,53 @@ def test_import_merge_mode_no_duplicate(client, sample_ged):
     assert len(client.get("/persons").json()) == 4
 
 
+# --------------------------------------------------------------- spreadsheet (CSV) import
+def _csv_import(client, text: str):
+    return client.post(
+        "/gedcom/import-csv", files={"file": ("intake.csv", text.encode("utf-8"), "text/csv")}
+    )
+
+
+def test_csv_import_builds_families(client):
+    csv_text = (
+        "First name,Last name,Sex,Date of birth,Birth place,Date of death,"
+        "Father's full name,Mother's full name,Spouse's full name,Notes\n"
+        "Juan,Gedorio,M,1940,Cebu,2010,,,Ana Gedorio,\n"
+        "Ana,Gedorio,F,1945,,,,,Juan Gedorio,\n"
+        "Maria,Gedorio,F,1970,,,Juan Gedorio,Ana Gedorio,Pedro Cruz,the eldest\n"
+    )
+    r = _csv_import(client, csv_text)
+    assert r.status_code == 201
+    s = r.json()
+    # 3 rows + 1 stub (Pedro Cruz, referenced but no row of his own).
+    assert s["persons"] == 3 and s["stubs"] == 1
+    # One couple family (Juan+Ana, reused for their child + each spouse column) + Maria&Pedro.
+    assert s["families"] == 2
+    assert s["relationships"] == 5  # Juan/Ana partners, Maria child, Maria/Pedro partners
+    assert s["events"] == 4  # Juan birth+death, Ana birth, Maria birth
+    assert s["warnings"] == []
+
+    idx = _person_index(client)
+    assert "Pedro" in idx  # stub created and named
+    tree = client.get("/tree").json()
+    juan, ana, maria = idx["Juan"], idx["Ana"], idx["Maria"]
+    assert {"source": str(juan), "target": str(maria), "pedigree": "BIRTH"} in tree["edges"]
+    assert {"source": str(ana), "target": str(maria), "pedigree": "BIRTH"} in tree["edges"]
+
+
+def test_csv_import_ambiguous_name_warns(client):
+    csv_text = (
+        "First name,Last name,Father's full name\n"
+        "John,Doe,\n"
+        "John,Doe,\n"  # a second identical name → ambiguous target
+        "Junior,Doe,John Doe\n"
+    )
+    s = _csv_import(client, csv_text).json()
+    assert s["persons"] == 3 and s["stubs"] == 0
+    assert s["relationships"] == 0  # ambiguous father left unlinked
+    assert len(s["warnings"]) == 1 and "matches 2 people" in s["warnings"][0]
+
+
 # --------------------------------------------------------------- media
 def test_media_crud_and_tree_photo(client):
     pid = client.post("/persons", json={"given_name": "Ivy", "sex": "F"}).json()["id"]

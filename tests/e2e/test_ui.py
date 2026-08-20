@@ -129,6 +129,32 @@ def test_import_via_file_input(page: Page, live):
     expect(page.locator("#status")).to_contain_text("4 people")
 
 
+def test_import_spreadsheet(page: Page, live):
+    """Uploading a filled intake CSV builds the tree (people + a linked child)."""
+    page.goto(live.url())
+    _login(page)
+    expect(page.locator("#empty-state")).to_be_visible()
+
+    csv_text = (
+        "First name,Last name,Father's full name,Mother's full name\n"
+        "Juan,Gedorio,,\n"
+        "Ana,Reyes,,\n"
+        "Maria,Gedorio,Juan Gedorio,Ana Reyes\n"
+    )
+    page.set_input_files(
+        "#import-csv-input",
+        files=[{"name": "intake.csv", "mimeType": "text/csv", "buffer": csv_text.encode()}],
+    )
+
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 3")
+    names = page.eval_on_selector_all(
+        "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
+    )
+    assert {"Juan Gedorio", "Ana Reyes", "Maria Gedorio"} == set(names)
+    # Maria is linked under both parents → two birth edges into her node.
+    assert page.locator("#tree-svg path.link").count() == 2
+
+
 def test_load_sample_button(page: Page, live):
     # Empty DB → click "Load sample" → the bundled 9-person family renders.
     page.goto(live.url())

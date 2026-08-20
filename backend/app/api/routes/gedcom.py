@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from backend.app.database import get_db
 from backend.app.parsers import export_gedcom, import_gedcom
 from backend.app.parsers.gedcom_reader import ImportResult
-from backend.app.schemas import ImportSummary
+from backend.app.schemas import CsvImportSummary, ImportSummary
+from backend.app.services.csv_import_service import import_csv
 
 router = APIRouter(prefix="/gedcom", tags=["gedcom"])
 
@@ -45,6 +46,24 @@ async def import_ged(
     result = import_gedcom(db, text, merge=(mode == "merge"))
     db.commit()
     return _summary(result)
+
+
+@router.post("/import-csv", response_model=CsvImportSummary, status_code=status.HTTP_201_CREATED)
+async def import_spreadsheet(
+    file: UploadFile = File(..., description="A CSV exported from the family intake sheet/form"),
+    db: Session = Depends(get_db),
+) -> CsvImportSummary:
+    """Import a filled family-intake spreadsheet (CSV) — one person per row."""
+    result = import_csv(db, await file.read())
+    db.commit()
+    return CsvImportSummary(
+        persons=result.persons,
+        stubs=result.stubs,
+        families=result.families,
+        relationships=result.relationships,
+        events=result.events,
+        warnings=result.warnings,
+    )
 
 
 @router.post("/sample", response_model=ImportSummary, status_code=status.HTTP_201_CREATED)

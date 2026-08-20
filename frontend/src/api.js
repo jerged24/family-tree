@@ -94,6 +94,11 @@ export const api = {
     body.append("file", file);
     return request("/gedcom/import", { method: "POST", body });
   },
+  importCsv(file) {
+    const body = new FormData();
+    body.append("file", file);
+    return request("/gedcom/import-csv", { method: "POST", body });
+  },
   loadSample() {
     return request("/gedcom/sample", { method: "POST" });
   },

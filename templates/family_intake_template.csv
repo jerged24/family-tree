@@ -1,0 +1,4 @@
+First name,Last name,Sex,Date of birth,Birth place,Date of death,Father's full name,Mother's full name,Spouse's full name,Notes
+Juan,Gedorio,M,12 Jun 1940,Cebu,3 Mar 2010,,,Ana Reyes,Family patriarch
+Ana,Reyes,F,about 1945,Bohol,,,,Juan Gedorio,
+Maria,Gedorio,F,1970,Cebu,,Juan Gedorio,Ana Reyes,Pedro Cruz,Eldest child
