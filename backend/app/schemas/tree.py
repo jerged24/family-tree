@@ -68,3 +68,14 @@ class ImportSummary(BaseModel):
     sources: int
     media: int = 0
     warnings: list[str] = []
+
+
+class CsvImportSummary(BaseModel):
+    """Counts returned after a spreadsheet (CSV) import."""
+
+    persons: int
+    stubs: int  # name-only people created for referenced-but-unlisted parents/spouses
+    families: int
+    relationships: int
+    events: int
+    warnings: list[str] = []

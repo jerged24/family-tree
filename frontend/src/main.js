@@ -30,6 +30,7 @@ const els = {
   slotA: document.getElementById("slot-a"),
   slotB: document.getElementById("slot-b"),
   importInput: document.getElementById("import-input"),
+  importCsvInput: document.getElementById("import-csv-input"),
   addPersonBtn: document.getElementById("add-person-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   exportBtn: document.getElementById("export-btn"),
@@ -723,6 +724,29 @@ els.importInput.addEventListener("change", async (e) => {
     setStatus(`Imported ${r.persons} people, ${r.families} families`);
     state.selectedId = null;
     await loadTree();
+  } catch (err) {
+    setStatus(err.message, true);
+  } finally {
+    e.target.value = "";
+  }
+});
+
+els.importCsvInput.addEventListener("change", async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setStatus("Importing spreadsheet…");
+  try {
+    const r = await api.importCsv(file);
+    const bits = [`${r.persons} people`];
+    if (r.stubs) bits.push(`${r.stubs} referenced added`);
+    if (r.families) bits.push(`${r.families} families`);
+    setStatus(`Imported ${bits.join(", ")}`);
+    state.selectedId = null;
+    await loadTree();
+    if (r.warnings && r.warnings.length) {
+      // Surface unmatched/ambiguous names so the owner can fix them by hand.
+      alert(`Imported with ${r.warnings.length} note(s):\n\n• ${r.warnings.join("\n• ")}`);
+    }
   } catch (err) {
     setStatus(err.message, true);
   } finally {

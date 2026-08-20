@@ -13,6 +13,7 @@ from backend.app.schemas.person import (
 from backend.app.schemas.relationship import RelationshipCreate, RelationshipRead
 from backend.app.schemas.source import CitationRead, SourceCreate, SourceRead
 from backend.app.schemas.tree import (
+    CsvImportSummary,
     DagEdge,
     DagNode,
     ImportSummary,
@@ -46,4 +47,5 @@ __all__ = [
     "TreeGraph",
     "RelationshipAnalysis",
     "ImportSummary",
+    "CsvImportSummary",
 ]
