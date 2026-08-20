@@ -13,6 +13,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.types import Scope
 
 from backend.app.api.deps import require_admin
 from backend.app.api.routes import (
@@ -28,6 +29,17 @@ from backend.app.api.routes import (
 from backend.app.config import settings
 from backend.app.database import init_db
 from backend.app.storage import media_dir
+
+
+# The SPA shell and its JS/CSS carry ETags; StaticFiles omits Cache-Control, so
+# browsers cache heuristically and can show a stale page after a deploy. "no-cache"
+# still stores the file but forces a revalidation each load — unchanged files return
+# a tiny 304, and a new deploy is picked up immediately with no hard refresh.
+class RevalidatingStatic(StaticFiles):
+    async def get_response(self, path: str, scope: Scope):
+        response = await super().get_response(path, scope)
+        response.headers.setdefault("Cache-Control", "no-cache")
+        return response
 
 
 @asynccontextmanager
@@ -95,7 +107,7 @@ def create_app() -> FastAPI:
     # still win over it.
     frontend_dir = Path(__file__).resolve().parents[2] / "frontend"
     if frontend_dir.is_dir():
-        app.mount("/", StaticFiles(directory=str(frontend_dir), html=True), name="spa")
+        app.mount("/", RevalidatingStatic(directory=str(frontend_dir), html=True), name="spa")
 
     return app
 
