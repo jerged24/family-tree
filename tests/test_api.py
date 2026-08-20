@@ -280,6 +280,7 @@ def test_csv_import_builds_families(client):
     juan, ana, maria = idx["Juan"], idx["Ana"], idx["Maria"]
     assert {"source": str(juan), "target": str(maria), "pedigree": "BIRTH"} in tree["edges"]
     assert {"source": str(ana), "target": str(maria), "pedigree": "BIRTH"} in tree["edges"]
+    assert client.get(f"/persons/{maria}").json()["notes"] == "the eldest"  # Notes column stored
 
 
 def test_csv_import_ambiguous_name_warns(client):

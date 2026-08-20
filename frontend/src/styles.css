@@ -205,10 +205,11 @@ body { display: flex; flex-direction: column; }
   display: flex; flex-direction: column; gap: 0.6rem;
 }
 .modal-card h2 { margin: 0 0 0.2rem; }
-.modal-card input, .modal-card select {
+.modal-card input, .modal-card select, .modal-card textarea {
   font: inherit; padding: 0.5rem; border: 1px solid var(--border);
   border-radius: 7px; background: var(--panel); color: var(--ink);
 }
+.pf-notes { resize: vertical; min-height: 2.4rem; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
 
 /* ---- Add-relative row ---- */
@@ -218,6 +219,14 @@ body { display: flex; flex-direction: column; }
 /* ---- Photo upload affordances ---- */
 .photo-file-btn { cursor: pointer; white-space: nowrap; }
 .detail .avatar.drop-hover { outline: 2px dashed var(--accent); outline-offset: 2px; }
+
+/* ---- Person notes (free text from the intake sheet / edit form) ---- */
+.person-notes {
+  white-space: pre-wrap; word-break: break-word; font-size: 0.82rem;
+  background: var(--bg); border: 1px solid var(--border); border-radius: 7px;
+  padding: 0.45rem 0.6rem; margin: 0 0 0.7rem; color: var(--ink);
+}
+.person-notes[hidden] { display: none; }
 
 /* ---- Edit/Delete entity actions ---- */
 .entity-actions { display: flex; gap: 0.4rem; margin-bottom: 0.7rem; }
