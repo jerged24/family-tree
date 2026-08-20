@@ -103,6 +103,7 @@ function openPersonForm(title, prefill = {}, opts = {}) {
   document.getElementById("pf-sex").value = prefill.sex || "U";
   document.getElementById("pf-dob").value = prefill.dob || "";
   document.getElementById("pf-dod").value = prefill.dod || "";
+  document.getElementById("pf-notes").value = prefill.notes || "";
   document.getElementById("pf-pedigree").value = "BIRTH";
   document.getElementById("pf-pedigree-wrap").hidden = !opts.showPedigree;
   personModal.hidden = false;
@@ -123,6 +124,7 @@ personForm.addEventListener("submit", (e) => {
     sex: document.getElementById("pf-sex").value,
     dob: document.getElementById("pf-dob").value.trim(),
     dod: document.getElementById("pf-dod").value.trim(),
+    notes: document.getElementById("pf-notes").value.trim(),
     pedigree: document.getElementById("pf-pedigree").value,
   });
 });
@@ -144,6 +146,7 @@ async function createPersonFromForm(form) {
     given_name: form.given || null,
     surname: form.surname || null,
     sex: form.sex || "U",
+    notes: form.notes || null,
   });
   if (form.dob) await api.createEvent({ type: "BIRT", person_id: person.id, date_value: form.dob });
   if (form.dod) await api.createEvent({ type: "DEAT", person_id: person.id, date_value: form.dod });
@@ -207,6 +210,7 @@ async function editPerson(id) {
     sex: p.sex || "U",
     dob: birth?.date_value || "",
     dod: death?.date_value || "",
+    notes: p.notes || "",
   });
   if (!form) return;
   setStatus("Saving…");
@@ -215,6 +219,7 @@ async function editPerson(id) {
       given_name: form.given || null,
       surname: form.surname || null,
       sex: form.sex || "U",
+      notes: form.notes || null,
     });
     await reconcileDateEvent(id, "BIRT", birth, form.dob);
     await reconcileDateEvent(id, "DEAT", death, form.dod);
@@ -431,7 +436,19 @@ async function renderDetail(id) {
       <button class="btn subtle" id="edit-person">Edit</button>
       <button class="btn subtle danger" id="delete-person">Delete</button>
     </div>
-    <ul class="events"><li class="muted">Loading events…</li></ul>
+    <div class="person-notes" id="person-notes" hidden></div>
+    <ul class="events"><li class="muted">Loading events…</li></ul>`;
+
+  // Free-text notes go in via textContent (never innerHTML) so they can't inject markup.
+  const notesEl = els.detail.querySelector("#person-notes");
+  if (p.notes) {
+    notesEl.textContent = p.notes;
+    notesEl.hidden = false;
+  }
+
+  els.detail.insertAdjacentHTML(
+    "beforeend",
+    `
     <div class="godparents" id="godparents"></div>
     <div class="add-relatives">
       <span class="add-label">Add relative:</span>
@@ -448,7 +465,8 @@ async function renderDetail(id) {
     <div class="detail-actions">
       <button class="btn subtle" data-slot="0">Set as A</button>
       <button class="btn subtle" data-slot="1">Set as B</button>
-    </div>`;
+    </div>`,
+  );
 
   // Edit / delete this person.
   els.detail.querySelector("#edit-person").addEventListener("click", () => editPerson(id));

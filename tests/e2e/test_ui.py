@@ -244,6 +244,32 @@ def test_add_edit_delete_person(page: Page, live):
     page.wait_for_function(f"!{_has_node('Ada Byron')}")
 
 
+def test_person_notes_show_and_edit(page: Page, live):
+    """Notes entered on the form appear in the detail panel and survive an edit."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Nora")
+    page.fill("#pf-surname", "Note")
+    page.fill("#pf-notes", "Village teacher")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Nora Note"))
+
+    _select(page, "Nora Note")
+    expect(page.locator("#person-notes")).to_have_text("Village teacher")
+
+    # Edit: the note pre-fills, change it, and the panel refreshes.
+    page.click("#edit-person")
+    page.wait_for_selector("#pf-given", state="visible")
+    assert page.input_value("#pf-notes") == "Village teacher"
+    page.fill("#pf-notes", "Retired teacher")
+    page.locator("#person-form button[type=submit]").click()
+    expect(page.locator("#person-notes")).to_have_text("Retired teacher")
+
+
 def test_name_capitalization_and_adopted_child(page: Page, live):
     """Names auto-capitalize; adding an adopted child yields a dashed edge."""
     page.goto(live.url())
