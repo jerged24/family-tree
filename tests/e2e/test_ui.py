@@ -129,6 +129,20 @@ def test_import_via_file_input(page: Page, live):
     expect(page.locator("#status")).to_contain_text("4 people")
 
 
+def test_download_blank_template(page: Page, live):
+    """The toolbar 'Blank template' button downloads a CSV with the intake headers."""
+    page.goto(live.url())
+    _login(page)
+
+    with page.expect_download() as dl:
+        page.click("#template-btn")
+    download = dl.value
+    assert download.suggested_filename == "family_intake_template.csv"
+    with open(download.path(), encoding="utf-8") as fh:
+        header = fh.readline()
+    assert "First name" in header and "Mother's full name" in header
+
+
 def test_import_spreadsheet(page: Page, live):
     """Uploading a filled intake CSV builds the tree (people + a linked child)."""
     page.goto(live.url())

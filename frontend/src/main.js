@@ -31,6 +31,7 @@ const els = {
   slotB: document.getElementById("slot-b"),
   importInput: document.getElementById("import-input"),
   importCsvInput: document.getElementById("import-csv-input"),
+  templateBtn: document.getElementById("template-btn"),
   addPersonBtn: document.getElementById("add-person-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   exportBtn: document.getElementById("export-btn"),
@@ -730,6 +731,27 @@ els.importInput.addEventListener("change", async (e) => {
     e.target.value = "";
   }
 });
+
+// Headers here must match the spreadsheet importer's recognized columns.
+const TEMPLATE_HEADERS = [
+  "First name", "Last name", "Sex", "Date of birth", "Birth place", "Date of death",
+  "Father's full name", "Mother's full name", "Spouse's full name", "Notes",
+];
+
+function downloadBlankTemplate() {
+  const row = TEMPLATE_HEADERS.map((h) => (/[",\n]/.test(h) ? `"${h.replace(/"/g, '""')}"` : h)).join(",");
+  const blob = new Blob([`${row}\r\n`], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "family_intake_template.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+els.templateBtn.addEventListener("click", downloadBlankTemplate);
 
 els.importCsvInput.addEventListener("change", async (e) => {
   const file = e.target.files[0];
