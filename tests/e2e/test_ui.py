@@ -129,6 +129,22 @@ def test_import_via_file_input(page: Page, live):
     expect(page.locator("#status")).to_contain_text("4 people")
 
 
+def test_download_slideshow(page: Page, live):
+    """The Slideshow button downloads a self-contained HTML presentation of the family."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    with page.expect_download() as dl:
+        page.click("#slideshow-btn")
+    download = dl.value
+    assert download.suggested_filename == "family-slideshow.html"
+    with open(download.path(), encoding="utf-8") as fh:
+        body = fh.read()
+    assert "John Smith" in body and 'class="slide"' in body  # a real slide deck
+
+
 def test_download_blank_template(page: Page, live):
     """The toolbar 'Blank template' button downloads a CSV with the intake headers."""
     page.goto(live.url())

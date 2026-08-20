@@ -121,6 +121,9 @@ export const api = {
   exportUrl(version = "5.5.1", privacy = "none") {
     return `${API_BASE}/gedcom/export?version=${version}&privacy=${privacy}`;
   },
+  slideshowUrl() {
+    return `${API_BASE}/slideshow`;
+  },
   login(password) {
     return request("/admin/login", {
       method: "POST",
