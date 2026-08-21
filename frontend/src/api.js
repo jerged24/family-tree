@@ -124,6 +124,9 @@ export const api = {
   slideshowUrl() {
     return `${API_BASE}/slideshow`;
   },
+  resetAll() {
+    return request("/admin/reset", { method: "POST" });
+  },
   login(password) {
     return request("/admin/login", {
       method: "POST",
