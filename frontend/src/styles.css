@@ -165,7 +165,7 @@ body { display: flex; flex-direction: column; }
 .marriage { fill: none; stroke: #b08968; stroke-width: 2px; }
 .marriage.on-path { stroke: var(--path); stroke-width: 2.6px; }
 .marriage.dimmed { opacity: 0.1; }
-.union-dot { fill: #b08968; stroke: var(--panel); stroke-width: 1.2px; }
+.union-ring { fill: none; stroke: #b08968; stroke-width: 2.2px; }
 
 .node { cursor: pointer; }
 .node .card { fill: var(--panel); stroke: var(--border); stroke-width: 1.4px; rx: 8; }
