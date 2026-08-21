@@ -248,6 +248,32 @@ def test_import_merge_mode_no_duplicate(client, sample_ged):
     assert len(client.get("/persons").json()) == 4
 
 
+# --------------------------------------------------------------- reset / start over
+def test_reset_clears_everything(client):
+    john = client.post("/persons", json={"given_name": "John", "surname": "Smith"}).json()["id"]
+    kid = client.post("/persons", json={"given_name": "Cara", "surname": "Smith"}).json()["id"]
+    fam = client.post("/families", json={}).json()["id"]
+    client.post(
+        f"/families/{fam}/members", json={"person_id": john, "family_id": fam, "role": "PARTNER"}
+    )
+    client.post(
+        f"/families/{fam}/members", json={"person_id": kid, "family_id": fam, "role": "CHILD"}
+    )
+    client.post("/events", json={"type": "BIRT", "person_id": john, "date_value": "1900"})
+    client.post(f"/persons/{john}/media", json={"url": "https://x/j.png"})
+    client.post(f"/persons/{john}/associations", json={"to_person_id": kid, "type": "GODPARENT"})
+
+    r = client.post("/admin/reset")
+    assert r.status_code == 200
+    assert r.json()["deleted_people"] == 2
+
+    assert client.get("/persons").json() == []
+    tree = client.get("/tree").json()
+    assert tree["nodes"] == [] and tree["edges"] == [] and tree["associations"] == []
+    # The schema is intact — you can start fresh right away.
+    assert client.post("/persons", json={"given_name": "New"}).status_code == 201
+
+
 # --------------------------------------------------------------- slideshow export
 def test_slideshow_export(client):
     john = client.post("/persons", json={"given_name": "John", "surname": "Smith"}).json()["id"]

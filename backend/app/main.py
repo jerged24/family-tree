@@ -25,6 +25,7 @@ from backend.app.api.routes import (
     media,
     persons,
     presentation,
+    reset,
     tree,
 )
 from backend.app.config import settings
@@ -94,6 +95,7 @@ def create_app() -> FastAPI:
         tree.router,
         gedcom.router,
         presentation.router,
+        reset.router,
     ]
     for router in guarded:
         app.include_router(router, dependencies=[Depends(require_admin)])

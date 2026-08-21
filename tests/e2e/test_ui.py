@@ -129,6 +129,39 @@ def test_import_via_file_input(page: Page, live):
     expect(page.locator("#status")).to_contain_text("4 people")
 
 
+def test_start_over_clears_the_tree(page: Page, live):
+    """Start over → confirm → type DELETE wipes the whole tree back to empty."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    def handle(dialog):
+        dialog.accept("DELETE") if dialog.type == "prompt" else dialog.accept()
+
+    page.on("dialog", handle)  # accept the confirm, then type DELETE at the prompt
+    page.click("#start-over-btn")
+
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.node').length === 0")
+    expect(page.locator("#empty-state")).to_be_visible()
+
+
+def test_start_over_needs_the_exact_word(page: Page, live):
+    """Typing the wrong word (or cancelling) leaves everyone intact."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    def handle(dialog):
+        dialog.accept("nope") if dialog.type == "prompt" else dialog.accept()
+
+    page.on("dialog", handle)
+    page.click("#start-over-btn")
+    expect(page.locator("#status")).to_contain_text("cancelled")
+    assert page.locator("#tree-svg g.node").count() == 4  # nothing deleted
+
+
 def test_download_slideshow(page: Page, live):
     """The Slideshow button downloads a self-contained HTML presentation of the family."""
     live.seed()

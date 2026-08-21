@@ -33,6 +33,7 @@ const els = {
   importCsvInput: document.getElementById("import-csv-input"),
   templateBtn: document.getElementById("template-btn"),
   slideshowBtn: document.getElementById("slideshow-btn"),
+  startOverBtn: document.getElementById("start-over-btn"),
   addPersonBtn: document.getElementById("add-person-btn"),
   sampleBtn: document.getElementById("sample-btn"),
   exportBtn: document.getElementById("export-btn"),
@@ -795,6 +796,38 @@ function downloadBlankTemplate() {
 }
 
 els.templateBtn.addEventListener("click", downloadBlankTemplate);
+
+els.startOverBtn.addEventListener("click", async () => {
+  const backedUp = confirm(
+    "⚠️ This permanently deletes EVERYONE in your family tree — all people, photos, dates, and links.\n\n" +
+      'Back up first: click Cancel, then use "Export GEDCOM" to save a copy you could re-import later.\n\n' +
+      "Click OK only if you've already saved a backup (or don't need one)."
+  );
+  if (!backedUp) {
+    setStatus("Start over cancelled — export a backup first if you want one");
+    return;
+  }
+  const typed = prompt("Type DELETE (all capitals) to erase the entire family tree:");
+  if (typed !== "DELETE") {
+    setStatus("Start over cancelled");
+    return;
+  }
+  setStatus("Clearing…");
+  try {
+    const r = await api.resetAll();
+    // Reset selection/comparison state and the side panels before reloading.
+    state.selectedId = null;
+    state.compare = [null, null];
+    renderSlots();
+    view.setComparison([]);
+    els.detail.className = "detail muted";
+    els.detail.textContent = "Select a person on the tree.";
+    await loadTree();
+    setStatus(`Cleared — removed ${r.deleted_people} people`);
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+});
 
 els.slideshowBtn.addEventListener("click", () => {
   // Same-origin GET returns the HTML file as an attachment (cookies sent automatically).
