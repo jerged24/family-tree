@@ -5,10 +5,39 @@ from __future__ import annotations
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.app.models import Association, Event, EventType, Media
-from backend.app.models.base import Pedigree, Sex
-from backend.app.schemas.tree import AssociationEdge, DagEdge, DagNode, TreeGraph
+from backend.app.models import Association, Event, EventType, Media, Relationship
+from backend.app.models.base import Pedigree, RelationshipRole, Sex
+from backend.app.schemas.tree import (
+    AssociationEdge,
+    DagEdge,
+    DagNode,
+    FamilyChild,
+    FamilyUnion,
+    TreeGraph,
+)
 from backend.app.services.graph_service import GraphService
+
+
+def _families(db: Session, person_ids: set[int]) -> list[FamilyUnion]:
+    """Families with at least one visible member → partners + children (for unions)."""
+    by_family: dict[int, dict[str, list]] = {}
+    for r in db.scalars(select(Relationship)):
+        slot = by_family.setdefault(r.family_id, {"partners": [], "children": []})
+        if r.role == RelationshipRole.PARTNER:
+            slot["partners"].append(r.person_id)
+        elif r.role == RelationshipRole.CHILD:
+            slot["children"].append((r.person_id, (r.pedigree or Pedigree.BIRTH)))
+    out: list[FamilyUnion] = []
+    for fid, slot in by_family.items():
+        partners = [str(p) for p in slot["partners"] if p in person_ids]
+        children = [
+            FamilyChild(id=str(c), pedigree=ped.value)
+            for c, ped in slot["children"]
+            if c in person_ids
+        ]
+        if partners or children:
+            out.append(FamilyUnion(id=str(fid), partners=partners, children=children))
+    return out
 
 
 def _display_dates(db: Session, person_ids: set[int]) -> dict[int, tuple[str | None, str | None]]:
@@ -94,8 +123,9 @@ def build_tree_graph(db: Session, root_id: int | None = None, mode: str = "full"
         edges.append(DagEdge(source=str(u), target=str(v), pedigree=pedigree.value))
 
     associations = _associations(db, node_ids)
+    families = _families(db, node_ids)
 
-    return TreeGraph(nodes=nodes, edges=edges, associations=associations)
+    return TreeGraph(nodes=nodes, edges=edges, associations=associations, families=families)
 
 
 def _associations(db: Session, person_ids: set[int]) -> list[AssociationEdge]:

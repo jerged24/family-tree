@@ -51,6 +51,7 @@ export class TreeView {
 
     this.viewport = this.svg.append("g").attr("class", "viewport");
     this.linkLayer = this.viewport.append("g").attr("class", "links");
+    this.unionLayer = this.viewport.append("g").attr("class", "unions");
     this.assocLayer = this.viewport.append("g").attr("class", "assocs");
     this.nodeLayer = this.viewport.append("g").attr("class", "nodes");
 
@@ -111,7 +112,7 @@ export class TreeView {
   _applyDim() {
     this.nodeLayer.selectAll("g.node").classed("dimmed", (n) => this._dimmed(n.data.id));
     this.linkLayer
-      .selectAll("path.link")
+      .selectAll("path.edge")
       .classed("dimmed", (l) => this._dimmed(l.source.data.id) || this._dimmed(l.target.data.id));
   }
 
@@ -149,6 +150,26 @@ export class TreeView {
     return { visible, childrenMap, byId };
   }
 
+  // Build the d3-dag input with a marriage-join node per couple: partners point
+  // into the join (so the layout sets them side by side), children hang from it.
+  _buildLayout(visible) {
+    const byId = new Map();
+    for (const id of visible) byId.set(id, { id, parentIds: [], union: false });
+
+    for (const fam of this.raw.families || []) {
+      const partners = (fam.partners || []).filter((p) => visible.has(p));
+      const kids = (fam.children || []).filter((c) => visible.has(c.id));
+      if (partners.length === 0) continue; // no visible partner to anchor the join
+      if (partners.length < 2 && kids.length === 0) continue; // a lone person — nothing to join
+      const uid = `u${fam.id}`;
+      const pedById = {};
+      for (const c of kids) pedById[c.id] = c.pedigree;
+      byId.set(uid, { id: uid, parentIds: partners.slice(), union: true, pedById });
+      for (const c of kids) byId.get(c.id).parentIds.push(uid);
+    }
+    return [...byId.values()];
+  }
+
   render(fit = false) {
     const { visible, childrenMap, byId } = this._visibleIds();
     if (visible.size === 0) {
@@ -157,18 +178,16 @@ export class TreeView {
       return;
     }
 
-    const layoutData = [...visible].map((id) => ({
-      id,
-      parentIds: (byId.get(id).parentIds || []).filter((p) => visible.has(p)),
-    }));
+    const layoutData = this._buildLayout(visible);
 
     const builder = d3dag.graphStratify();
     const dag = builder(layoutData);
 
     const layout = d3dag
       .sugiyama()
-      .nodeSize([NODE_W + 28, NODE_H + 46])
-      .gap([26, 46]);
+      // Marriage-join nodes are tiny; person cards get the full card box.
+      .nodeSize((node) => (node?.data?.union ? [46, 24] : [NODE_W + 28, NODE_H + 46]))
+      .gap([26, 28]);
     layout(dag);
 
     const nodes = [...dag.nodes()];
@@ -183,23 +202,32 @@ export class TreeView {
       .x((p) => pt(p)[0])
       .y((p) => pt(p)[1]);
 
-    // Edge pedigree lookup (source->target) — drives dashed + per-type colored links.
-    const pedigree = new Map(this.raw.edges.map((e) => [`${e.source}->${e.target}`, e.pedigree]));
-
-    // ---- links ----
+    // ---- links: marriage (partner→union) + parentage (union→child) ----
     this.linkLayer
-      .selectAll("path.link")
+      .selectAll("path.edge")
       .data(links, (l) => `${l.source.data.id}->${l.target.data.id}`)
       .join("path")
       .attr("class", (l) => {
-        const key = `${l.source.data.id}->${l.target.data.id}`;
-        const ped = pedigree.get(key) || "BIRTH";
-        return ped === "BIRTH" ? "link" : `link non-birth ped-${ped.toLowerCase()}`;
+        if (l.target.data.union) return "edge marriage"; // partner → marriage join
+        const ped = (l.source.data.pedById || {})[l.target.data.id] || "BIRTH"; // union → child
+        return ped === "BIRTH" ? "edge link" : `edge link non-birth ped-${ped.toLowerCase()}`;
       })
       .attr("d", (l) => lineGen(l.points));
 
-    // ---- association overlay (godparents etc.) — straight dotted lines between node centers ----
-    const posById = new Map(nodes.map((n) => [n.data.id, n]));
+    // ---- union (marriage) join markers ----
+    this.unionLayer
+      .selectAll("g.union")
+      .data(
+        nodes.filter((n) => n.data.union),
+        (n) => n.data.id
+      )
+      .join((enter) =>
+        enter.append("g").attr("class", "union").call((g) => g.append("circle").attr("class", "union-dot").attr("r", 4))
+      )
+      .attr("transform", (n) => `translate(${n.x}, ${n.y})`);
+
+    // ---- association overlay (godparents etc.) — straight dotted lines between person centers ----
+    const posById = new Map(nodes.filter((n) => !n.data.union).map((n) => [n.data.id, n]));
     const assocData = (this.raw.associations || []).filter(
       (a) => posById.has(a.source) && posById.has(a.target)
     );
@@ -214,10 +242,13 @@ export class TreeView {
         return `M${s.x},${s.y} L${t.x},${t.y}`;
       });
 
-    // ---- nodes ----
+    // ---- person nodes (cards) ----
     const nodeSel = this.nodeLayer
       .selectAll("g.node")
-      .data(nodes, (n) => n.data.id)
+      .data(
+        nodes.filter((n) => !n.data.union),
+        (n) => n.data.id
+      )
       .join((enter) => this._enterNode(enter, childrenMap));
 
     nodeSel.attr("transform", (n) => `translate(${n.x - NODE_W / 2}, ${n.y - NODE_H / 2})`);
@@ -290,7 +321,9 @@ export class TreeView {
   }
 
   _hasChildren(id) {
-    return this.raw.nodes.some((n) => (n.parentIds || []).includes(id));
+    return (this.raw.families || []).some(
+      (f) => (f.partners || []).includes(id) && (f.children || []).length > 0
+    );
   }
 
   _enterNode(enter, childrenMap) {
@@ -390,13 +423,25 @@ export class TreeView {
   }
 
   setPath(ids) {
-    this.pathNodeSet = new Set((ids || []).map(String));
+    const path = (ids || []).map(String);
+    this.pathNodeSet = new Set(path);
     this.pathEdgeSet = new Set();
-    for (let i = 0; i < (ids || []).length - 1; i++) {
-      const a = String(ids[i]);
-      const b = String(ids[i + 1]);
-      this.pathEdgeSet.add(`${a}->${b}`);
-      this.pathEdgeSet.add(`${b}->${a}`);
+    // Each parent/child step renders as two legs through the couple's join marker;
+    // mark both so the highlight follows the actual drawn lines.
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = path[i];
+      const b = path[i + 1];
+      for (const f of this.raw.families || []) {
+        const uid = `u${f.id}`;
+        const kids = (f.children || []).map((c) => c.id);
+        const partners = f.partners || [];
+        if (partners.includes(a) && kids.includes(b)) {
+          this.pathEdgeSet.add(`${a}->${uid}`).add(`${uid}->${b}`);
+        }
+        if (partners.includes(b) && kids.includes(a)) {
+          this.pathEdgeSet.add(`${b}->${uid}`).add(`${uid}->${a}`);
+        }
+      }
     }
     this._applyHighlights();
   }
@@ -409,7 +454,7 @@ export class TreeView {
       el.classed("selected", id === this.selectedId || compare.has(id));
       el.classed("on-path", this.pathNodeSet.has(id));
     });
-    this.linkLayer.selectAll("path.link").each((l, i, g) => {
+    this.linkLayer.selectAll("path.edge").each((l, i, g) => {
       const key = `${l.source.data.id}->${l.target.data.id}`;
       d3.select(g[i]).classed("on-path", this.pathEdgeSet.has(key));
     });

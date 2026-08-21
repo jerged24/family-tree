@@ -47,9 +47,13 @@ def test_tree_renders_all_people(page: Page, live):
         "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
     )
     assert set(names) == {"John Smith", "Mary Jones", "Carol Smith", "David Smith Jr"}
-    assert page.locator("#tree-svg path.link").count() == 4
-    # David is adopted → both parent edges are dashed.
-    assert page.locator("#tree-svg path.link.ped-adopted").count() == 2
+    # Marriage-node layout: John & Mary join at one marriage marker (2 marriage
+    # links), and each child descends from it (2 parentage links).
+    assert page.locator("#tree-svg g.union").count() == 1
+    assert page.locator("#tree-svg path.marriage").count() == 2
+    assert page.locator("#tree-svg path.link").count() == 2
+    # David is adopted → his single parentage line (from the couple) is dashed.
+    assert page.locator("#tree-svg path.link.ped-adopted").count() == 1
     expect(page.locator("#empty-state")).to_be_hidden()
 
 
@@ -162,6 +166,33 @@ def test_start_over_needs_the_exact_word(page: Page, live):
     assert page.locator("#tree-svg g.node").count() == 4  # nothing deleted
 
 
+def test_childless_couple_is_connected(page: Page, live):
+    """A married couple with no children is still joined by a marriage marker."""
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#empty-state", state="attached")
+
+    page.click("#add-person-btn")
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Alex")
+    page.fill("#pf-surname", "Reyes")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Alex Reyes"))
+
+    _select(page, "Alex Reyes")
+    page.wait_for_selector("#detail button[data-rel='spouse']")
+    page.locator("#detail button[data-rel='spouse']").click()
+    page.wait_for_selector("#pf-given", state="visible")
+    page.fill("#pf-given", "Sam")
+    page.fill("#pf-surname", "Cruz")
+    page.locator("#person-form button[type=submit]").click()
+    page.wait_for_function(_has_node("Sam Cruz"))
+
+    # No children, yet the couple is connected by one marriage marker (2 legs).
+    page.wait_for_function("document.querySelectorAll('#tree-svg g.union').length === 1")
+    assert page.locator("#tree-svg path.marriage").count() == 2
+
+
 def test_download_slideshow(page: Page, live):
     """The Slideshow button downloads a self-contained HTML presentation of the family."""
     live.seed()
@@ -214,8 +245,9 @@ def test_import_spreadsheet(page: Page, live):
         "#tree-svg g.node text.name", "els => els.map(e => e.textContent)"
     )
     assert {"Juan Gedorio", "Ana Reyes", "Maria Gedorio"} == set(names)
-    # Maria is linked under both parents → two birth edges into her node.
-    assert page.locator("#tree-svg path.link").count() == 2
+    # Juan & Ana join at one marriage marker; Maria descends from it.
+    assert page.locator("#tree-svg path.marriage").count() == 2  # Juan & Ana → the join
+    assert page.locator("#tree-svg path.link").count() == 1  # join → Maria
 
 
 def test_load_sample_button(page: Page, live):

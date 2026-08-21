@@ -161,6 +161,11 @@ body { display: flex; flex-direction: column; }
 .link.ped-guardian { stroke: #27ae60; }
 .link.ped-sealed { stroke: #8a94a6; }
 .link.on-path { stroke: var(--path); stroke-width: 2.6px; }
+/* Marriage join: partners link into a small marker that groups the couple */
+.marriage { fill: none; stroke: #b08968; stroke-width: 2px; }
+.marriage.on-path { stroke: var(--path); stroke-width: 2.6px; }
+.marriage.dimmed { opacity: 0.1; }
+.union-dot { fill: #b08968; stroke: var(--panel); stroke-width: 1.2px; }
 
 .node { cursor: pointer; }
 .node .card { fill: var(--panel); stroke: var(--border); stroke-width: 1.4px; rx: 8; }
