@@ -139,6 +139,25 @@ def test_family_membership_builds_tree_edge(client):
     assert {"source": str(parent), "target": str(child), "pedigree": "BIRTH"} in tree["edges"]
 
 
+def test_tree_exposes_childless_couple_as_a_family(client):
+    """A childless couple has no parent-child edges but is exposed as a family (union)."""
+    a = client.post("/persons", json={"given_name": "Al"}).json()["id"]
+    b = client.post("/persons", json={"given_name": "Bo"}).json()["id"]
+    fam = client.post("/families", json={}).json()["id"]
+    client.post(
+        f"/families/{fam}/members", json={"person_id": a, "family_id": fam, "role": "PARTNER"}
+    )
+    client.post(
+        f"/families/{fam}/members", json={"person_id": b, "family_id": fam, "role": "PARTNER"}
+    )
+
+    tree = client.get("/tree").json()
+    assert tree["edges"] == []  # no children → no parent-child lines (the reported gap)
+    fams = tree["families"]
+    assert len(fams) == 1
+    assert set(fams[0]["partners"]) == {str(a), str(b)} and fams[0]["children"] == []
+
+
 def test_partner_with_pedigree_is_rejected(client):
     p = client.post("/persons", json={"given_name": "X"}).json()["id"]
     fam = client.post("/families", json={}).json()["id"]

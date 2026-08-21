@@ -40,10 +40,28 @@ class AssociationEdge(BaseModel):
     type: str
 
 
+class FamilyChild(BaseModel):
+    id: str  # child person id
+    pedigree: str = "BIRTH"
+
+
+class FamilyUnion(BaseModel):
+    """A couple/parenting unit — drives the marriage-node layout on the frontend.
+
+    Partners are drawn side by side joined by a marriage marker (even with no
+    children), and children descend from that marker.
+    """
+
+    id: str  # stringified family id
+    partners: list[str] = []  # partner person ids in this family
+    children: list[FamilyChild] = []
+
+
 class TreeGraph(BaseModel):
     nodes: list[DagNode]
     edges: list[DagEdge]
     associations: list[AssociationEdge] = []
+    families: list[FamilyUnion] = []
 
 
 class RelationshipAnalysis(BaseModel):
