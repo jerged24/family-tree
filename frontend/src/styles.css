@@ -167,7 +167,7 @@ body { display: flex; flex-direction: column; }
 .marriage.dimmed { opacity: 0.1; }
 /* Marriage marker: a gold band set with a little diamond */
 .union-band { fill: none; stroke: #d4af37; stroke-width: 2.4px; }
-.union-gem { fill: #cfe8ff; stroke: #6f93b8; stroke-width: 0.6px; }
+.union-gem { fill: #50c878; stroke: #2e7d5b; stroke-width: 0.6px; }
 .union-gem-facets { fill: none; stroke: #ffffff; stroke-width: 0.5px; opacity: 0.85; }
 
 .node { cursor: pointer; }
