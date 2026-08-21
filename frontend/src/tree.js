@@ -222,7 +222,10 @@ export class TreeView {
         (n) => n.data.id
       )
       .join((enter) =>
-        enter.append("g").attr("class", "union").call((g) => g.append("circle").attr("class", "union-dot").attr("r", 4))
+        enter
+          .append("g")
+          .attr("class", "union")
+          .call((g) => g.append("circle").attr("class", "union-ring").attr("r", 6))
       )
       .attr("transform", (n) => `translate(${n.x}, ${n.y})`);
 
