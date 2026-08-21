@@ -225,7 +225,16 @@ export class TreeView {
         enter
           .append("g")
           .attr("class", "union")
-          .call((g) => g.append("circle").attr("class", "union-ring").attr("r", 6))
+          .call((g) => {
+            // A gold band with a little diamond (band circle + gem silhouette + facet lines).
+            g.append("circle").attr("class", "union-band").attr("r", 6);
+            g.append("path")
+              .attr("class", "union-gem")
+              .attr("d", "M-2,-2.2 L2,-2.2 L3,-0.6 L0,3.6 L-3,-0.6 Z");
+            g.append("path")
+              .attr("class", "union-gem-facets")
+              .attr("d", "M-3,-0.6 L3,-0.6 M-2,-2.2 L0,3.6 M2,-2.2 L0,3.6");
+          })
       )
       .attr("transform", (n) => `translate(${n.x}, ${n.y})`);
 
