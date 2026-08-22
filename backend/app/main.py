@@ -26,6 +26,7 @@ from backend.app.api.routes import (
     persons,
     presentation,
     reset,
+    shares,
     tree,
 )
 from backend.app.config import settings
@@ -96,10 +97,12 @@ def create_app() -> FastAPI:
         gedcom.router,
         presentation.router,
         reset.router,
+        shares.router,
     ]
     for router in guarded:
         app.include_router(router, dependencies=[Depends(require_admin)])
     app.include_router(admin_auth.router)  # unprotected: login lives here
+    app.include_router(shares.public_router)  # unprotected: public slideshow links
 
     app.mount("/media/files", StaticFiles(directory=str(media_dir())), name="media")
 

@@ -267,6 +267,26 @@ def test_import_merge_mode_no_duplicate(client, sample_ged):
     assert len(client.get("/persons").json()) == 4
 
 
+# --------------------------------------------------------------- public share links
+def test_share_create_and_public_view(client):
+    html = "<!doctype html><title>Fam</title><body>Hello family</body>"
+    r = client.post("/shares", content=html, headers={"Content-Type": "text/html"})
+    assert r.status_code == 201
+    path = r.json()["path"]
+    assert path.startswith("/s/")
+
+    # The share is viewable with NO login (public), rendered inline (not a download).
+    view = client.get(path)
+    assert view.status_code == 200
+    assert view.headers["content-type"].startswith("text/html")
+    assert "content-disposition" not in view.headers  # inline, so it renders on a phone
+    assert "Hello family" in view.text
+
+    assert client.post("/shares", content=b"").status_code == 400  # empty rejected
+    assert client.get("/s/does-not-exist-token").status_code == 404
+    assert client.get("/s/..%2f..%2fetc").status_code == 404  # path traversal rejected
+
+
 # --------------------------------------------------------------- reset / start over
 def test_reset_clears_everything(client):
     john = client.post("/persons", json={"given_name": "John", "surname": "Smith"}).json()["id"]

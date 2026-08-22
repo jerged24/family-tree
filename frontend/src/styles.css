@@ -301,6 +301,11 @@ body { display: flex; flex-direction: column; }
 .ss-inline { display: inline-flex; align-items: center; gap: 0.4rem; }
 .ss-inline input[type="number"] { width: 4.5rem; }
 .ss-hint { font-size: 0.72rem; color: var(--muted); }
+.ss-result { margin-top: 0.2rem; }
+.ss-result[hidden] { display: none; }
+.ss-link-row { display: flex; gap: 0.4rem; margin-top: 0.35rem; }
+.ss-link { flex: 1; min-width: 0; font: inherit; font-size: 0.8rem; padding: 0.4rem;
+  border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--ink); }
 
 /* ---- Duplicate-merge modal ---- */
 .dedupe-card { width: min(560px, 92vw); max-height: 82vh; display: flex; flex-direction: column; }
