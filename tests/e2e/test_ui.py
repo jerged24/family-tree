@@ -200,13 +200,18 @@ def test_download_slideshow(page: Page, live):
     _login(page)
     page.wait_for_selector("#tree-svg g.node")
 
+    page.click("#slideshow-btn")
+    page.wait_for_selector("#slideshow-modal:not([hidden])")
+    # The story-order dropdown is populated with the family (plus the default option).
+    assert page.locator("#ss-anchor option").count() >= 5
     with page.expect_download() as dl:
-        page.click("#slideshow-btn")
+        page.locator("#slideshow-form button[type=submit]").click()
     download = dl.value
     assert download.suggested_filename == "family-slideshow.html"
     with open(download.path(), encoding="utf-8") as fh:
         body = fh.read()
     assert "John Smith" in body and 'class="slide"' in body  # a real slide deck
+    assert "const INTERVAL" in body  # autoplay wired in
 
 
 def test_download_blank_template(page: Page, live):

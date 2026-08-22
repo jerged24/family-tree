@@ -121,8 +121,19 @@ export const api = {
   exportUrl(version = "5.5.1", privacy = "none") {
     return `${API_BASE}/gedcom/export?version=${version}&privacy=${privacy}`;
   },
-  slideshowUrl() {
-    return `${API_BASE}/slideshow`;
+  async slideshowHtml({ anchor = null, seconds = 6 } = {}) {
+    const params = new URLSearchParams();
+    if (anchor) params.set("anchor", anchor);
+    if (seconds) params.set("seconds", seconds);
+    const res = await fetch(`${API_BASE}/slideshow?${params.toString()}`, {
+      credentials: "include",
+    });
+    if (res.status === 401) {
+      document.dispatchEvent(new CustomEvent("needs-login"));
+      throw new Error("Login required");
+    }
+    if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+    return res.text();
   },
   resetAll() {
     return request("/admin/reset", { method: "POST" });

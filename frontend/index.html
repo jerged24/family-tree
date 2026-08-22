@@ -147,6 +147,29 @@
     </form>
   </div>
 
+  <div id="slideshow-modal" class="modal-overlay" hidden>
+    <form id="slideshow-form" class="modal-card">
+      <h2>Create slideshow</h2>
+      <label class="ss-label">Story order
+        <select id="ss-anchor">
+          <option value="">Whole family (oldest first)</option>
+        </select>
+        <span class="ss-hint">Pick a person to start from their father's side, then mother's side.</span>
+      </label>
+      <label class="ss-label">Auto-advance every
+        <span class="ss-inline"><input id="ss-seconds" type="number" min="2" max="30" step="1" value="6" /> seconds</span>
+      </label>
+      <label class="ss-label">Background music (optional)
+        <input id="ss-music" type="file" accept="audio/*" />
+        <span class="ss-hint">Embedded into the file so it plays anywhere, offline.</span>
+      </label>
+      <div class="modal-actions">
+        <button type="button" class="btn subtle" id="ss-cancel">Cancel</button>
+        <button type="submit" class="btn">Download slideshow</button>
+      </div>
+    </form>
+  </div>
+
   <div id="dedupe-modal" class="modal-overlay" hidden>
     <div class="modal-card dedupe-card">
       <h2>Possible duplicates</h2>

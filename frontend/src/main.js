@@ -829,14 +829,66 @@ els.startOverBtn.addEventListener("click", async () => {
   }
 });
 
-els.slideshowBtn.addEventListener("click", () => {
-  // Same-origin GET returns the HTML file as an attachment (cookies sent automatically).
-  const a = document.createElement("a");
-  a.href = api.slideshowUrl();
-  a.download = "family-slideshow.html";
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+// ---- slideshow options (order anchor, speed, background music) ----
+const slideshowModal = document.getElementById("slideshow-modal");
+
+function openSlideshowModal() {
+  const sel = document.getElementById("ss-anchor");
+  const people = [...state.people.values()].sort((a, b) =>
+    displayName(a).localeCompare(displayName(b))
+  );
+  sel.innerHTML =
+    '<option value="">Whole family (oldest first)</option>' +
+    people.map((p) => `<option value="${p.id}">${displayName(p)}</option>`).join("");
+  sel.value = state.selectedId ? String(state.selectedId) : "";
+  document.getElementById("ss-music").value = "";
+  slideshowModal.hidden = false;
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(new Error("Could not read the music file"));
+    r.readAsDataURL(file);
+  });
+}
+
+async function createSlideshow() {
+  const anchor = document.getElementById("ss-anchor").value || null;
+  const seconds = Number(document.getElementById("ss-seconds").value) || 6;
+  const musicFile = document.getElementById("ss-music").files[0];
+  slideshowModal.hidden = true;
+  setStatus("Building slideshow…");
+  try {
+    let html = await api.slideshowHtml({ anchor, seconds });
+    if (musicFile) {
+      // Embed the chosen track (base64) so the downloaded file plays music offline.
+      const dataUri = await fileToDataUrl(musicFile);
+      html = html.replace('const BGM = "";', `const BGM = ${JSON.stringify(dataUri)};`);
+    }
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "family-slideshow.html";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setStatus("Slideshow downloaded");
+  } catch (err) {
+    setStatus(err.message, true);
+  }
+}
+
+els.slideshowBtn.addEventListener("click", openSlideshowModal);
+document.getElementById("slideshow-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  createSlideshow();
+});
+document.getElementById("ss-cancel").addEventListener("click", () => {
+  slideshowModal.hidden = true;
 });
 
 els.importCsvInput.addEventListener("change", async (e) => {
