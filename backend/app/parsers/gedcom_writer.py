@@ -8,6 +8,8 @@ with pedigree written under each individual's ``FAMC`` pointer (5.5.1 placement)
 
 from __future__ import annotations
 
+import base64
+import mimetypes
 import re
 from datetime import date
 
@@ -25,6 +27,7 @@ from backend.app.models import (
     Sex,
     Source,
 )
+from backend.app.storage import media_dir
 
 # A person is treated as possibly-living (and masked under privacy) if there is no
 # recorded death and their birth is either unknown or within the last century.
@@ -214,13 +217,27 @@ class GedcomWriter:
 
     def _write_media(self, item) -> None:  # noqa: ANN001 - Media (avoid import cycle noise)
         self._line(1, "OBJE")
-        self._line(2, "FILE", item.url)
+        self._line(2, "FILE", self._media_file_value(item))
         if item.mime_type:
             self._line(3, "FORM", item.mime_type)
         if item.caption:
             self._line(2, "TITL", item.caption)
         if item.is_primary:
             self._line(2, "_PRIM", "Y")
+
+    @staticmethod
+    def _media_file_value(item) -> str:  # noqa: ANN001 - Media
+        """Embed a locally-uploaded photo as a base64 data URI so the export is a
+        self-contained backup (survives 'Start over' / moving machines). Photos that
+        are already data:/http(s) URLs pass through unchanged."""
+        url = item.url or ""
+        if url.startswith("/media/files/"):
+            path = media_dir() / url.rsplit("/", 1)[-1]
+            if path.is_file():
+                mime = item.mime_type or mimetypes.guess_type(path.name)[0] or "image/jpeg"
+                data = base64.b64encode(path.read_bytes()).decode()
+                return f"data:{mime};base64,{data}"
+        return url
 
     # -- helpers ------------------------------------------------------------
     @staticmethod

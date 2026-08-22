@@ -213,6 +213,38 @@ def test_gedcom_import_export_and_analysis(client, sample_ged):
     assert "2 PEDI adopted" in body
 
 
+def test_gedcom_export_embeds_uploaded_photo(db, tmp_path, monkeypatch):
+    """An uploaded photo is embedded (base64) in the export, so the .ged is a
+    self-contained backup — the photo survives 'Start over' even if files are gone."""
+    from backend.app.config import settings
+    from backend.app.models import Media, Person
+    from backend.app.parsers import export_gedcom, import_gedcom
+    from backend.app.storage import save_upload
+
+    monkeypatch.setattr(settings, "media_dir", str(tmp_path))
+    person = Person(given_name="Ann", surname="Lee")
+    db.add(person)
+    db.flush()
+    png = bytes.fromhex("89504e470d0a1a0a0000000d49484452")  # PNG header bytes
+    filename, url = save_upload(png, "image/png", "ann.png")
+    db.add(Media(person_id=person.id, url=url, is_primary=True))
+    db.commit()
+
+    text = export_gedcom(db)
+    assert "2 FILE data:image/png;base64," in text  # embedded, not a fragile /media/files pointer
+
+    # Wipe the DB *and* the file (like Start over), then reimport the saved backup.
+    (tmp_path / filename).unlink()
+    for m in db.query(Media).all():
+        db.delete(m)
+    for p in db.query(Person).all():
+        db.delete(p)
+    db.commit()
+    import_gedcom(db, text, merge=True)
+    db.commit()
+    assert db.query(Media).first().url.startswith("data:image/png;base64,")  # photo restored
+
+
 def test_tree_subtree_modes(client, sample_ged):
     client.post("/gedcom/import", files={"file": ("s.ged", sample_ged, "text/plain")})
     carol = _person_index(client)["Carol"]
