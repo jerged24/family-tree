@@ -842,6 +842,9 @@ function openSlideshowModal() {
     people.map((p) => `<option value="${p.id}">${displayName(p)}</option>`).join("");
   sel.value = state.selectedId ? String(state.selectedId) : "";
   document.getElementById("ss-music").value = "";
+  const result = document.getElementById("ss-result");
+  result.hidden = true;
+  result.innerHTML = "";
   slideshowModal.hidden = false;
 }
 
@@ -854,19 +857,24 @@ function fileToDataUrl(file) {
   });
 }
 
-async function createSlideshow() {
+async function assembleSlideshowHtml() {
   const anchor = document.getElementById("ss-anchor").value || null;
   const seconds = Number(document.getElementById("ss-seconds").value) || 6;
   const musicFile = document.getElementById("ss-music").files[0];
+  let html = await api.slideshowHtml({ anchor, seconds });
+  if (musicFile) {
+    // Embed the chosen track (base64) so it plays offline / on the shared page.
+    const dataUri = await fileToDataUrl(musicFile);
+    html = html.replace('const BGM = "";', `const BGM = ${JSON.stringify(dataUri)};`);
+  }
+  return html;
+}
+
+async function createSlideshow() {
   slideshowModal.hidden = true;
   setStatus("Building slideshow…");
   try {
-    let html = await api.slideshowHtml({ anchor, seconds });
-    if (musicFile) {
-      // Embed the chosen track (base64) so the downloaded file plays music offline.
-      const dataUri = await fileToDataUrl(musicFile);
-      html = html.replace('const BGM = "";', `const BGM = ${JSON.stringify(dataUri)};`);
-    }
+    const html = await assembleSlideshowHtml();
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -882,11 +890,47 @@ async function createSlideshow() {
   }
 }
 
+async function shareSlideshow() {
+  const result = document.getElementById("ss-result");
+  result.hidden = false;
+  result.textContent = "Creating a share link…";
+  try {
+    const { path } = await api.createShare(await assembleSlideshowHtml());
+    const url = location.origin + path;
+    result.innerHTML =
+      '<p class="ss-hint">Paste this in the group chat — relatives tap it and it plays in their browser (no login):</p>';
+    const row = document.createElement("div");
+    row.className = "ss-link-row";
+    const field = document.createElement("input");
+    field.readOnly = true;
+    field.value = url;
+    field.className = "ss-link";
+    field.addEventListener("focus", () => field.select());
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "btn subtle";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(url);
+        copy.textContent = "Copied!";
+      } catch {
+        field.select();
+      }
+    });
+    row.append(field, copy);
+    result.append(row);
+  } catch (err) {
+    result.textContent = err.message;
+  }
+}
+
 els.slideshowBtn.addEventListener("click", openSlideshowModal);
 document.getElementById("slideshow-form").addEventListener("submit", (e) => {
   e.preventDefault();
   createSlideshow();
 });
+document.getElementById("ss-share").addEventListener("click", shareSlideshow);
 document.getElementById("ss-cancel").addEventListener("click", () => {
   slideshowModal.hidden = true;
 });

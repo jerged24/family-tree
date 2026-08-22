@@ -193,6 +193,26 @@ def test_childless_couple_is_connected(page: Page, live):
     assert page.locator("#tree-svg path.marriage").count() == 2
 
 
+def test_slideshow_share_link(page: Page, live):
+    """The 'Get share link' button yields a public URL that renders without login."""
+    live.seed()
+    page.goto(live.url())
+    _login(page)
+    page.wait_for_selector("#tree-svg g.node")
+
+    page.click("#slideshow-btn")
+    page.wait_for_selector("#slideshow-modal:not([hidden])")
+    page.click("#ss-share")
+    page.wait_for_selector(".ss-link")
+    url = page.input_value(".ss-link")
+    assert "/s/" in url
+
+    # Opening the public link (no login step) renders the slideshow.
+    page.goto(url)
+    page.wait_for_selector(".slide")
+    assert page.locator(".slide").count() >= 2
+
+
 def test_download_slideshow(page: Page, live):
     """The Slideshow button downloads a self-contained HTML presentation of the family."""
     live.seed()

@@ -26,6 +26,14 @@ def media_dir() -> Path:
     return path
 
 
+def shares_dir() -> Path:
+    """Where published (public) slideshow snapshots live — sibling of the media dir,
+    so it sits on the same persistent volume in production (/data/shares)."""
+    path = Path(settings.media_dir).parent / "shares"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def save_upload(
     data: bytes, content_type: str | None, original_name: str | None = None
 ) -> tuple[str, str]:

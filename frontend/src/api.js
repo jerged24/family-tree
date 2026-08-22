@@ -135,6 +135,20 @@ export const api = {
     if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
     return res.text();
   },
+  async createShare(html) {
+    const res = await fetch(`${API_BASE}/shares`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "text/html" },
+      body: html,
+    });
+    if (res.status === 401) {
+      document.dispatchEvent(new CustomEvent("needs-login"));
+      throw new Error("Login required");
+    }
+    if (!res.ok) throw new Error(`${res.status}: ${res.statusText}`);
+    return res.json(); // { token, path }
+  },
   resetAll() {
     return request("/admin/reset", { method: "POST" });
   },
