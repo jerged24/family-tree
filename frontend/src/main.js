@@ -890,10 +890,24 @@ async function createSlideshow() {
   }
 }
 
+const MAX_SHARE_MUSIC_BYTES = 28 * 1024 * 1024; // base64 + photos must stay under the server cap
+
 async function shareSlideshow() {
   const result = document.getElementById("ss-result");
+  const shareBtn = document.getElementById("ss-share");
   result.hidden = false;
-  result.textContent = "Creating a share link…";
+
+  // Catch an oversized song up front so it fails instantly with a clear message
+  // instead of a slow upload that ends in a cryptic error.
+  const musicFile = document.getElementById("ss-music").files[0];
+  if (musicFile && musicFile.size > MAX_SHARE_MUSIC_BYTES) {
+    const mb = Math.round(musicFile.size / (1024 * 1024));
+    result.textContent = `That song is ${mb} MB — too large to share as a link. Pick one under ~20 MB, or use Download (any size works offline).`;
+    return;
+  }
+
+  result.textContent = "Creating a share link… (a music file can take a moment to upload)";
+  shareBtn.disabled = true;
   try {
     const { path } = await api.createShare(await assembleSlideshowHtml());
     const url = location.origin + path;
@@ -921,7 +935,11 @@ async function shareSlideshow() {
     row.append(field, copy);
     result.append(row);
   } catch (err) {
-    result.textContent = err.message;
+    result.textContent = /(^|\D)413(\D|$)/.test(err.message)
+      ? "That slideshow is too big to share as a link — usually a large music file. Try a shorter or smaller song (under ~20 MB), or use Download instead (any size works offline)."
+      : err.message;
+  } finally {
+    shareBtn.disabled = false;
   }
 }
 
