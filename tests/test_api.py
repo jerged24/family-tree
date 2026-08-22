@@ -317,6 +317,54 @@ def test_slideshow_export(client):
     assert "John Smith" in body and "Cara Smith" in body  # a slide per person
     assert "Born in Cebu" in body  # birthplace rendered
     assert "Children" in body  # relationship row derived from the family
+    assert 'id="bgm"' in body and 'const BGM = "";' in body  # autoplay + music hooks present
+
+
+def test_slideshow_anchor_orders_paternal_then_maternal(client):
+    # Anchor (kid) with a paternal grandfather and a maternal grandmother.
+    gf = client.post("/persons", json={"given_name": "Grandpa", "sex": "M"}).json()["id"]
+    gm = client.post("/persons", json={"given_name": "Grandma", "sex": "F"}).json()["id"]
+    dad = client.post("/persons", json={"given_name": "Dad", "sex": "M"}).json()["id"]
+    mom = client.post("/persons", json={"given_name": "Mom", "sex": "F"}).json()["id"]
+    kid = client.post("/persons", json={"given_name": "Kid", "sex": "F"}).json()["id"]
+
+    fam_dad = client.post("/families", json={}).json()["id"]  # Grandpa → Dad
+    client.post(
+        f"/families/{fam_dad}/members",
+        json={"person_id": gf, "family_id": fam_dad, "role": "PARTNER"},
+    )
+    client.post(
+        f"/families/{fam_dad}/members",
+        json={"person_id": dad, "family_id": fam_dad, "role": "CHILD"},
+    )
+    fam_mom = client.post("/families", json={}).json()["id"]  # Grandma → Mom
+    client.post(
+        f"/families/{fam_mom}/members",
+        json={"person_id": gm, "family_id": fam_mom, "role": "PARTNER"},
+    )
+    client.post(
+        f"/families/{fam_mom}/members",
+        json={"person_id": mom, "family_id": fam_mom, "role": "CHILD"},
+    )
+    fam_kid = client.post("/families", json={}).json()["id"]  # Dad + Mom → Kid
+    client.post(
+        f"/families/{fam_kid}/members",
+        json={"person_id": dad, "family_id": fam_kid, "role": "PARTNER"},
+    )
+    client.post(
+        f"/families/{fam_kid}/members",
+        json={"person_id": mom, "family_id": fam_kid, "role": "PARTNER"},
+    )
+    client.post(
+        f"/families/{fam_kid}/members",
+        json={"person_id": kid, "family_id": fam_kid, "role": "CHILD"},
+    )
+
+    body = client.get("/slideshow", params={"anchor": kid, "seconds": 8}).text
+    # Index each person's own slide heading (names also appear in relationship rows).
+    order = [body.index(f"<h2>{n}</h2>") for n in ("Grandpa", "Dad", "Grandma", "Mom", "Kid")]
+    assert order == sorted(order)  # paternal line, then maternal line, then the anchor
+    assert "const INTERVAL = 8000;" in body  # speed honored
 
 
 # --------------------------------------------------------------- spreadsheet (CSV) import
