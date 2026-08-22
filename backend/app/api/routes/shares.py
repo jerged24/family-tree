@@ -17,7 +17,7 @@ from backend.app.storage import shares_dir
 router = APIRouter(tags=["shares"])  # guarded (owner creates)
 public_router = APIRouter(tags=["shares"])  # unguarded (anyone with the link views)
 
-_MAX_BYTES = 30 * 1024 * 1024  # 30 MB — generous headroom for an embedded song
+_MAX_BYTES = 40 * 1024 * 1024  # 40 MB — headroom for an embedded song + photos
 _TOKEN_RE = re.compile(r"^[A-Za-z0-9_-]{8,64}$")
 
 
@@ -29,7 +29,8 @@ async def create_share(request: Request) -> dict[str, str]:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Empty slideshow")
     if len(body) > _MAX_BYTES:
         raise HTTPException(
-            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, "Slideshow too large to share"
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            "Slideshow too large to share — please use a smaller music file.",
         )
     token = secrets.token_urlsafe(12)
     (shares_dir() / f"{token}.html").write_bytes(body)
