@@ -228,17 +228,17 @@ _PAGE = """<!doctype html>
     font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
   .deck { height:100%; }
   .slide { position:fixed; inset:0; display:none; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; padding:6vmin; gap:1.2rem; }
+    align-items:center; justify-content:center; text-align:center; padding:3vmin; gap:0.7rem; }
   .slide.active { display:flex; animation:fade .4s ease; }
   @keyframes fade { from { opacity:0; transform:translateY(8px); } to { opacity:1; } }
   .title h1 { font-size:8vmin; margin:0; }
   .title .count { font-size:3vmin; color:var(--accent); margin:0; }
   .title .hint { font-size:2.2vmin; color:var(--muted); margin-top:2rem; }
-  .photo { width:36vmin; height:36vmin; border-radius:50%; overflow:hidden;
+  .photo { width:min(72vmin, 64vh); height:min(72vmin, 64vh); border-radius:50%; overflow:hidden;
     box-shadow:0 10px 40px rgba(0,0,0,.5); border:3px solid var(--card); }
   .photo img { width:100%; height:100%; object-fit:cover; }
   .photo.initial { display:flex; align-items:center; justify-content:center;
-    font-size:16vmin; font-weight:700; background:var(--card); color:var(--muted); }
+    font-size:32vmin; font-weight:700; background:var(--card); color:var(--muted); }
   .photo.initial.sex-m { color:#7db1ff; } .photo.initial.sex-f { color:#ff9ecb; }
   .slide h2 { font-size:6vmin; margin:0; }
   .life { font-size:3vmin; color:var(--accent); margin:0; }

@@ -193,14 +193,6 @@ export class TreeView {
     const nodes = [...dag.nodes()];
     const links = [...dag.links()];
     this._applyLayoutTransform(nodes, links);
-    const pt = (p) => (Array.isArray(p) ? p : [p.x, p.y]);
-    const lineGen = d3
-      .line()
-      // Top-down keeps sugiyama's routed waypoints (curved); the alternate
-      // layouts draw straight lines between the transformed node centers.
-      .curve(this.layoutMode === "topdown" ? d3.curveMonotoneY : d3.curveLinear)
-      .x((p) => pt(p)[0])
-      .y((p) => pt(p)[1]);
 
     // ---- links: marriage (partner→union) + parentage (union→child) ----
     this.linkLayer
@@ -212,7 +204,7 @@ export class TreeView {
         const ped = (l.source.data.pedById || {})[l.target.data.id] || "BIRTH"; // union → child
         return ped === "BIRTH" ? "edge link" : `edge link non-birth ped-${ped.toLowerCase()}`;
       })
-      .attr("d", (l) => lineGen(l.points));
+      .attr("d", (l) => this._edgePath(l));
 
     // ---- union (marriage) join markers ----
     this.unionLayer
@@ -300,6 +292,26 @@ export class TreeView {
     this._applyHighlights();
     this._applyDim();
     if (fit) this.fitToView(nodes);
+  }
+
+  // Orthogonal (right-angle) connector between two nodes: leaves the source's
+  // near edge, turns once at the midpoint, and enters the target's near edge —
+  // vertical/horizontal only. Radial stays a straight radial spoke.
+  _edgePath(l) {
+    const s = l.source;
+    const t = l.target;
+    if (this.layoutMode === "radial") return `M${s.x},${s.y} L${t.x},${t.y}`;
+    if (this.layoutMode === "leftright") {
+      const sx = s.data.union ? s.x : s.x + NODE_W / 2;
+      const tx = t.data.union ? t.x : t.x - NODE_W / 2;
+      const midX = (sx + tx) / 2;
+      return `M${sx},${s.y} H${midX} V${t.y} H${tx}`;
+    }
+    // top-down: down from the source, across, then down into the target
+    const sy = s.data.union ? s.y : s.y + NODE_H / 2;
+    const ty = t.data.union ? t.y : t.y - NODE_H / 2;
+    const midY = (sy + ty) / 2;
+    return `M${s.x},${sy} V${midY} H${t.x} V${ty}`;
   }
 
   // Re-map sugiyama's top-down coordinates into the active layout. Mutates each
